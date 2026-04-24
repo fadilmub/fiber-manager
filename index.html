@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manajemen ODP & ODC - GIS Fiber Optik</title>
+    
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fas fa-network-wired"></i> Fiber Manager</h2>
+            </div>
+            
+            <div class="sidebar-content">
+                <!-- Tombol Tambah -->
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="showAddODPDialog()">
+                        <i class="fas fa-plus-circle"></i> Tambah ODP
+                    </button>
+                    <button class="btn btn-secondary" onclick="showAddODCDialog()">
+                        <i class="fas fa-plus-circle"></i> Tambah ODC
+                    </button>
+                </div>
+                
+                <!-- Filter & Pencarian -->
+                <div class="filter-section">
+                    <input type="text" id="searchInput" placeholder="Cari ODP/ODC..." class="search-input">
+                    <div class="filter-buttons">
+                        <button class="filter-btn active" data-filter="all">Semua</button>
+                        <button class="filter-btn" data-filter="odc">ODC</button>
+                        <button class="filter-btn" data-filter="odp">ODP</button>
+                    </div>
+                </div>
+                <!-- Pencarian Pelanggan -->
+                <div class="customer-search-section">
+                    <h4><i class="fas fa-users"></i> Cari Pelanggan</h4>
+                    <div class="search-box">
+                        <input type="text" id="customerSearchInput" placeholder="Nama pelanggan...">
+                        <button id="customerSearchBtn" onclick="searchCustomer()"><i class="fas fa-search"></i></button>
+                    </div>
+                    <div id="customerSearchResults" class="customer-results"></div>
+                </div>
+                
+                <!-- Daftar Perangkat -->
+                <div class="device-list" id="deviceList"></div>
+            </div>
+        </div>
+        
+        <!-- Map Container -->
+        <div class="map-container">
+            <div id="map"></div>
+            
+            <!-- Info Panel -->
+            <div class="info-panel" id="infoPanel">
+                <div class="info-header">
+                    <h3 id="infoTitle">Informasi Perangkat</h3>
+                    <button class="close-btn" onclick="hideInfoPanel()">&times;</button>
+                </div>
+                <div class="info-content" id="infoContent">
+                    Pilih perangkat di peta atau daftar
+                </div>
+            </div>
+            
+            <!-- Pencarian Koordinat -->
+            <div class="coordinate-search">
+                <input type="text" id="searchCoordinate" placeholder="Cari koordinat... (-6.2088, 106.8456)">
+                <button onclick="searchAndZoom()"><i class="fas fa-search"></i></button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Form ODP -->
+    <div class="modal" id="odpModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Tambah ODP</h2>
+                <span class="close" onclick="closeModal('odpModal')">&times;</span>
+            </div>
+            <form id="odpForm">
+                <input type="hidden" id="odpId">
+                
+                <div class="form-group">
+                    <label>Nama ODP:</label>
+                    <input type="text" id="odpName" placeholder="Contoh: ODP-FT-001" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Berasal dari (ODC):</label>
+                    <select id="odpSource">
+                        <option value="">Pilih ODC sumber...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Koordinat (latitude, longitude):</label>
+                    <input type="text" id="odpCoordinates" placeholder="Contoh: -6.208800, 106.845600" required>
+                    <small>Format: latitude, longitude (contoh: -6.963707888562949, 109.64706473647041)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Alamat Lokasi:</label>
+                    <input type="text" id="odpLocation" placeholder="Contoh: Jl. Raya Cikarang No. 123">
+                </div>
+                
+                <div class="form-group">
+                    <label>Jumlah Port:</label>
+                    <input type="number" id="odpTotalPorts" min="1" max="48" value="8" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Port Tersedia:</label>
+                    <input type="number" id="odpAvailablePorts" min="0" readonly>
+                </div>
+                
+                <div class="form-group">
+                    <label>Status Port:</label>
+                    <div class="port-management" id="odpPortStatus"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Keterangan:</label>
+                    <textarea id="odpDescription" rows="3" placeholder="Tambahkan keterangan..."></textarea>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('odpModal')">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal Form ODC -->
+    <div class="modal" id="odcModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Tambah ODC</h2>
+                <span class="close" onclick="closeModal('odcModal')">&times;</span>
+            </div>
+            <form id="odcForm">
+                <input type="hidden" id="odcId">
+                
+                <div class="form-group">
+                    <label>Nama ODC:</label>
+                    <input type="text" id="odcName" placeholder="Contoh: ODC-CKR-001" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Koordinat (latitude, longitude):</label>
+                    <input type="text" id="odcCoordinates" placeholder="Contoh: -6.208800, 106.845600" required>
+                    <small>Format: latitude, longitude (contoh: -6.963707888562949, 109.64706473647041)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Alamat Lokasi:</label>
+                    <input type="text" id="odcLocation" placeholder="Contoh: Jl. Raya Cikarang No. 123">
+                </div>
+                
+                <div class="form-group">
+                    <label>Kapasitas Port:</label>
+                    <input type="number" id="odcCapacity" min="1" max="288" value="24" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Port Terpakai:</label>
+                    <input type="number" id="odcUsedPorts" min="0" readonly>
+                </div>
+                
+                <div class="form-group">
+                    <label>Daftar ODP Terhubung:</label>
+                    <div class="connected-list" id="connectedODPList"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Keterangan:</label>
+                    <textarea id="odcDescription" rows="3" placeholder="Tambahkan keterangan..."></textarea>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('odcModal')">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal Konfigurasi Port (hanya untuk pelanggan) -->
+    <div class="modal" id="portDirectionModal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h3>Konfigurasi Port untuk Pelanggan</h3>
+                <span class="close" onclick="closeModal('portDirectionModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nomor Port:</label>
+                    <input type="text" id="displayPortNumber" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Nama Pelanggan:</label>
+                    <input type="text" id="customerName" placeholder="Masukkan nama pelanggan" required>
+                </div>
+                <div class="form-group">
+                    <label>Status:</label>
+                    <select id="portStatus">
+                        <option value="active">Active (Terpakai)</option>
+                        <option value="maintenance">Maintenance</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary btn-block" onclick="savePortCustomer()">Simpan</button>
+                <button class="btn btn-secondary btn-block" style="margin-top:5px;" onclick="clearPort()">Kosongkan Port</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- JavaScript -->
+    <script src="js/map.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
