@@ -41,6 +41,34 @@ body {
     padding: 20px;
 }
 
+.user-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.2);
+}
+
+.user-info span {
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.btn-logout {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.btn-logout:hover {
+    background: rgba(255,255,255,0.3);
+}
 /* Action Buttons */
 .action-buttons {
     display: flex;

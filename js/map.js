@@ -1,7 +1,7 @@
-// js/map.js
-
-// API Base URL
-const API_BASE = 'http://localhost/fiber-manager/api';
+// =============================================
+// DEKLARASI GLOBAL - HANYA SEKALI DI SINI
+// =============================================
+const API_BASE = window.location.origin + '/fiber-manager/api';
 
 // Global variables
 let map;
@@ -11,6 +11,10 @@ let currentEditingDevice = null;
 let currentPortConfig = { deviceId: null, portNumber: null };
 let odpMarkers = {};
 let highlightedMarker = null;
+
+// =============================================
+// FUNGSI-FUNGSI MAP
+// =============================================
 
 // Initialize map
 function initMap() {
@@ -35,6 +39,7 @@ function parseCoordinates(coordString) {
     return { lat, lng };
 }
 
+// Format coordinates for display
 function formatCoordinates(lat, lng) {
     return `${lat}, ${lng}`;
 }
@@ -66,6 +71,64 @@ function searchAndZoom() {
     setTimeout(() => { map.removeLayer(tempMarker); }, 10000);
     map.setView([coords.lat, coords.lng], 17);
 }
+// Generic fetch with auth
+async function fetchWithAuth(url, options = {}) {
+    const defaultOptions = {
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+    };
+    
+    const mergedOptions = {
+        ...defaultOptions,
+        ...options,
+        headers: {
+            ...defaultOptions.headers,
+            ...(options.headers || {})
+        }
+    };
+    
+    try {
+        const response = await fetch(url, mergedOptions);
+        
+        if (response.status === 401) {
+            window.location.href = 'login.html';
+            return null;
+        }
+        
+        return response;
+    } catch (error) {
+        console.error('Fetch error:', error);
+        throw error;
+    }
+}
+
+// Load devices from API
+async function loadDevices() {
+    try {
+        const [odcRes, odpRes] = await Promise.all([
+            fetchWithAuth(`${API_BASE}/odc.php`),
+            fetchWithAuth(`${API_BASE}/odp.php`)
+        ]);
+        
+        if (!odcRes || !odpRes) return;
+        
+        const odcData = await odcRes.json();
+        const odpData = await odpRes.json();
+        
+        devices.odc = Array.isArray(odcData) ? odcData : [];
+        devices.odp = Array.isArray(odpData) ? odpData : [];
+        
+        refreshMapMarkers();
+        refreshDeviceList();
+    } catch (error) {
+        console.error('Error loading devices:', error);
+        alert('Gagal memuat data. Pastikan XAMPP berjalan dan API dapat diakses.');
+    }
+}
+
 
 // =============================================
 // FUNGSI UNTUK MENENTUKAN STATUS KAPASITAS ODP
@@ -585,8 +648,8 @@ function highlightODP(odpId) {
 async function loadDevices() {
     try {
         const [odcRes, odpRes] = await Promise.all([
-            fetch(`${API_BASE}/odc.php`),
-            fetch(`${API_BASE}/odp.php`)
+            fetch(`${API_BASE}/odc.php`, { credentials: 'include' }),
+            fetch(`${API_BASE}/odp.php`, { credentials: 'include' })
         ]);
         
         const odcData = await odcRes.json();

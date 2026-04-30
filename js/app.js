@@ -1,31 +1,124 @@
 // js/app.js
+// js/app.js
+
+// =============================================
+// CATATAN: API_BASE sudah dideklarasikan di map.js
+// JANGAN deklarasi ulang di sini!
+// =============================================
 
 // Initialize application
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    // Check authentication FIRST
+    const isAuth = await checkAuthentication();
+    if (!isAuth) {
+        window.location.href = 'login.html';
+        return;
+    }
+    
+    // Load user info
+    await loadUserInfo();
+    
+    // Initialize app
     initMap();
     initEventListeners();
     loadDevices();
 });
 
+// Check authentication
+async function checkAuthentication() {
+    try {
+        const response = await fetch(`${API_BASE}/auth.php?action=me`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.user) {
+                console.log('Authenticated as:', data.user.username);
+                return true;
+            }
+        }
+        
+        console.log('Not authenticated');
+        return false;
+    } catch (error) {
+        console.error('Auth check failed:', error);
+        return false;
+    }
+}
+
+// Load user info
+async function loadUserInfo() {
+    try {
+        const response = await fetch(`${API_BASE}/auth.php?action=me`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.user) {
+                const userDisplay = document.getElementById('userDisplayName');
+                if (userDisplay) {
+                    userDisplay.textContent = data.user.full_name;
+                }
+                window.currentUser = data.user;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load user info:', error);
+    }
+}
+
+// Logout function
+async function logout() {
+    if (!confirm('Apakah Anda yakin ingin logout?')) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/auth.php?action=logout`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+        
+        window.location.href = 'login.html';
+    } catch (error) {
+        console.error('Logout failed:', error);
+        window.location.href = 'login.html';
+    }
+}
+
 // Initialize event listeners
 function initEventListeners() {
-    document.getElementById('odpForm').addEventListener('submit', function(e) {
+    document.getElementById('odpForm')?.addEventListener('submit', function(e) {
         e.preventDefault();
         saveODP();
     });
     
-    document.getElementById('odcForm').addEventListener('submit', function(e) {
+    document.getElementById('odcForm')?.addEventListener('submit', function(e) {
         e.preventDefault();
         saveODC();
     });
     
-    document.getElementById('odpTotalPorts').addEventListener('change', function() {
+    document.getElementById('odpTotalPorts')?.addEventListener('change', function() {
         if (!currentEditingDevice) {
             generatePortStatusInputs();
         }
     });
     
-    document.getElementById('searchInput').addEventListener('input', function() {
+    document.getElementById('searchInput')?.addEventListener('input', function() {
         refreshDeviceList();
     });
     
@@ -37,14 +130,15 @@ function initEventListeners() {
         });
     });
     
-    // Enter untuk search coordinate
-    document.getElementById('searchCoordinate').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            searchAndZoom();
-        }
-    });
+    const searchCoord = document.getElementById('searchCoordinate');
+    if (searchCoord) {
+        searchCoord.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchAndZoom();
+            }
+        });
+    }
     
-    // Enter untuk search customer
     const customerInput = document.getElementById('customerSearchInput');
     if (customerInput) {
         customerInput.addEventListener('keypress', function(e) {
@@ -54,6 +148,8 @@ function initEventListeners() {
         });
     }
 }
+
+
 
 // Show add ODP dialog
 async function showAddODPDialog() {
@@ -127,7 +223,6 @@ function configurePort(portNumber) {
     currentPortConfig.deviceId = deviceId;
     currentPortConfig.portNumber = portNumber;
     
-    // Ambil data port eksisting
     const device = devices.odp.find(d => d.id == deviceId);
     const existingPort = device?.ports?.find(p => p.port_number === portNumber);
     
@@ -159,6 +254,7 @@ async function savePortCustomer() {
     try {
         const response = await fetch(`${API_BASE}/ports.php?odp_id=${currentPortConfig.deviceId}&port=${currentPortConfig.portNumber}`, {
             method: 'PUT',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
@@ -170,7 +266,6 @@ async function savePortCustomer() {
             const device = devices.odp.find(d => d.id == currentPortConfig.deviceId);
             if (device) {
                 generatePortStatusInputs(device.ports);
-                // Jika panel info sedang terbuka untuk ODP ini, refresh tampilannya
                 const infoTitle = document.getElementById('infoTitle').textContent;
                 if (infoTitle === device.name) {
                     showDeviceInfo(device);
@@ -178,6 +273,8 @@ async function savePortCustomer() {
             }
             
             alert('Konfigurasi pelanggan berhasil disimpan');
+        } else if (response.status === 401) {
+            window.location.href = 'login.html';
         }
     } catch (error) {
         console.error('Error:', error);
@@ -185,7 +282,7 @@ async function savePortCustomer() {
     }
 }
 
-// Kosongkan port (kembalikan ke available)
+// Kosongkan port
 async function clearPort() {
     if (!confirm('Kosongkan port ini? Status akan kembali ke Available.')) return;
     
@@ -198,6 +295,7 @@ async function clearPort() {
     try {
         const response = await fetch(`${API_BASE}/ports.php?odp_id=${currentPortConfig.deviceId}&port=${currentPortConfig.portNumber}`, {
             method: 'PUT',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
@@ -216,6 +314,8 @@ async function clearPort() {
             }
             
             alert('Port berhasil dikosongkan');
+        } else if (response.status === 401) {
+            window.location.href = 'login.html';
         }
     } catch (error) {
         console.error('Error:', error);
@@ -231,6 +331,41 @@ function updateAvailablePortsCount() {
     const availablePorts = totalPorts - usedPorts - maintenancePorts;
     
     document.getElementById('odpAvailablePorts').value = availablePorts;
+}
+
+// Generic fetch function with auth handling
+async function fetchWithAuth(url, options = {}) {
+    const defaultOptions = {
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+    };
+    
+    const mergedOptions = {
+        ...defaultOptions,
+        ...options,
+        headers: {
+            ...defaultOptions.headers,
+            ...(options.headers || {})
+        }
+    };
+    
+    try {
+        const response = await fetch(url, mergedOptions);
+        
+        // If unauthorized, redirect to login
+        if (response.status === 401) {
+            window.location.href = 'login.html';
+            return null;
+        }
+        
+        return response;
+    } catch (error) {
+        console.error('Fetch error:', error);
+        throw error;
+    }
 }
 
 // Save ODP
@@ -266,35 +401,24 @@ async function saveODP() {
         const url = id ? `${API_BASE}/odp.php?id=${id}` : `${API_BASE}/odp.php`;
         const method = id ? 'PUT' : 'POST';
         
-        const response = await fetch(url, {
+        const response = await fetchWithAuth(url, {
             method: method,
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
         
-        const result = await response.json();
+        if (!response) return;
         
         if (response.ok) {
             closeModal('odpModal');
-            await loadDevices(); // Refresh semua data dari server
-            
-            // Jika panel info terbuka untuk ODP ini, refresh tampilannya
-            const infoTitle = document.getElementById('infoTitle').textContent;
-            if (id && result.data) {
-                // Cari device yang baru diupdate di data yang sudah direfresh
-                const updatedDevice = devices.odp.find(d => d.id == id);
-                if (updatedDevice && document.getElementById('infoPanel').classList.contains('show')) {
-                    showDeviceInfo(updatedDevice);
-                }
-            }
-            
+            await loadDevices();
             alert('ODP berhasil disimpan');
         } else {
-            alert('Gagal menyimpan ODP: ' + (result.error || 'Unknown error'));
+            const error = await response.json();
+            alert('Gagal menyimpan ODP: ' + (error.error || 'Unknown error'));
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('Gagal menyimpan ODP');
+        alert('Gagal menyimpan ODP. Periksa koneksi ke server.');
     }
 }
 
@@ -327,20 +451,24 @@ async function saveODC() {
         const url = id ? `${API_BASE}/odc.php?id=${id}` : `${API_BASE}/odc.php`;
         const method = id ? 'PUT' : 'POST';
         
-        const response = await fetch(url, {
+        const response = await fetchWithAuth(url, {
             method: method,
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
+        
+        if (!response) return;
         
         if (response.ok) {
             closeModal('odcModal');
             await loadDevices();
             alert('ODC berhasil disimpan');
+        } else {
+            const error = await response.json();
+            alert('Gagal menyimpan ODC: ' + (error.error || 'Unknown error'));
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('Gagal menyimpan ODC');
+        alert('Gagal menyimpan ODC. Periksa koneksi ke server.');
     }
 }
 
@@ -375,7 +503,7 @@ async function editDevice(id, type) {
         }
         
         document.getElementById('odcModal').classList.add('show');
-    }  else {
+    } else {
         document.getElementById('modalTitle').textContent = 'Edit ODP';
         document.getElementById('odpId').value = device.id;
         document.getElementById('odpName').value = device.name;
@@ -390,11 +518,11 @@ async function editDevice(id, type) {
             document.getElementById('odpSource').value = device.source_id;
         }
         
-        // PENTING: Kirim data port yang ada untuk ditampilkan
         generatePortStatusInputs(device.ports);
         document.getElementById('odpModal').classList.add('show');
     }
 }
+
 // Delete device
 async function deleteDevice(id, type) {
     if (!confirm('Yakin ingin menghapus perangkat ini?')) return;
@@ -404,7 +532,9 @@ async function deleteDevice(id, type) {
             `${API_BASE}/odc.php?id=${id}` : 
             `${API_BASE}/odp.php?id=${id}`;
         
-        const response = await fetch(url, { method: 'DELETE' });
+        const response = await fetchWithAuth(url, { method: 'DELETE' });
+        
+        if (!response) return;
         
         if (response.ok) {
             await loadDevices();
