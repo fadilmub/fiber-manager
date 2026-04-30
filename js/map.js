@@ -412,12 +412,40 @@ function showDeviceInfo(device) {
     
     if (isODC) {
         html += `
+            <p><strong>POP:</strong> ${device.pop_name || '-'}</p>
+            <p><strong>Port PON:</strong> ${device.pon_port || '-'}</p>
             <p><strong>Kapasitas Port:</strong> ${device.capacity}</p>
             <p><strong>Port Terpakai:</strong> ${device.used_ports || 0}</p>
-            <p><strong>Port Tersedia:</strong> ${device.capacity - (device.used_ports || 0)}</p>
-            <p><strong>ODP Terhubung:</strong></p>
-            <ul>
+            <p><strong>Total Pelanggan:</strong> ${device.total_customers || 0}</p>
+            <h4>🔌 Port Output</h4>
         `;
+
+        if (device.ports && device.ports.length > 0) {
+            html += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;">`;
+
+            device.ports.forEach(port => {
+                let bgColor = '#c6f6d5';
+
+                if (port.status === 'used') bgColor = '#fed7d7';
+                else if (port.status === 'maintenance') bgColor = '#fefcbf';
+
+                html += `
+                    <div style="
+                        padding:8px;
+                        text-align:center;
+                        background:${bgColor};
+                        border-radius:4px;
+                        font-size:12px;
+                    ">
+                        ${port.port_number}
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+        } else {
+            html += `<p>Tidak ada data port</p>`;
+        }
         if (device.connected_odps_list) {
             device.connected_odps_list.forEach(odp => {
                 html += `<li>${odp.name}</li>`;

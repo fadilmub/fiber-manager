@@ -107,7 +107,12 @@
                         <option value="">Pilih ODC sumber...</option>
                     </select>
                 </div>
-                
+                <div class="form-group" id="odcPortGroup" style="display:none;">
+                    <label>Port ODC yang digunakan:</label>
+                    <select id="odcSourcePort">
+                        <option value="">Pilih port ODC</option>
+                    </select>
+                </div>
                 <div class="form-group">
                     <label>Koordinat (latitude, longitude):</label>
                     <input type="text" id="odpCoordinates" placeholder="Contoh: -6.208800, 106.845600" required>
@@ -172,7 +177,14 @@
                     <label>Alamat Lokasi:</label>
                     <input type="text" id="odcLocation" placeholder="Contoh: Jl. Raya Cikarang No. 123">
                 </div>
-                
+                <div class="form-group">
+                    <label>Nama POP:</label>
+                    <input type="text" id="odcPopName" placeholder="Contoh: POP KDW">
+                </div>
+                <div class="form-group">
+                    <label>Port PON:</label>
+                    <input type="text" id="odcPonPort" placeholder="Contoh: 1/1/2">
+                </div>
                 <div class="form-group">
                     <label>Kapasitas Port:</label>
                     <input type="number" id="odcCapacity" min="1" max="288" value="24" required>
@@ -201,6 +213,37 @@
         </div>
     </div>
     
+
+
+    <div class="modal" id="odcPortModal">
+    <div class="modal-content modal-small">
+        <div class="modal-header">
+            <h3>Konfigurasi Port ODC</h3>
+            <span class="close" onclick="closeModal('odcPortModal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Port ke:</label>
+                <input type="text" id="odcDisplayPort" readonly>
+            </div>
+            <div class="form-group">
+                <label>Tujuan ODP:</label>
+                <select id="odcTargetOdp">
+                    <option value="">Pilih ODP...</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Status:</label>
+                <select id="odcPortStatus">
+                    <option value="used">Active (Terpakai)</option>
+                    <option value="maintenance">Maintenance</option>
+                </select>
+            </div>
+            <button class="btn btn-primary btn-block" onclick="saveOdcPort()">Simpan</button>
+            <button class="btn btn-secondary btn-block" style="margin-top:5px;" onclick="clearOdcPort()">Kosongkan Port</button>
+        </div>
+    </div>
+</div>
     <!-- Modal Konfigurasi Port (hanya untuk pelanggan) -->
     <div class="modal" id="portDirectionModal">
         <div class="modal-content modal-small">
@@ -218,6 +261,10 @@
                     <input type="text" id="customerName" placeholder="Masukkan nama pelanggan" required>
                 </div>
                 <div class="form-group">
+                    <label>Nomor ONU:</label>
+                    <input type="text" id="customerOnuId" placeholder="Contoh: 1/1/2:10">
+                </div>
+                <div class="form-group">
                     <label>Status:</label>
                     <select id="portStatus">
                         <option value="active">Active (Terpakai)</option>
@@ -229,6 +276,7 @@
             </div>
         </div>
     </div>
+
     
     <!-- JavaScript -->
     <script src="js/map.js"></script>

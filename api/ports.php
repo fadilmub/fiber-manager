@@ -1,5 +1,6 @@
 <?php
 require_once 'config.php';
+requireAuth();
 
 $method = $_SERVER['REQUEST_METHOD'];
 $odp_id = isset($_GET['odp_id']) ? (int)$_GET['odp_id'] : null;
@@ -23,16 +24,13 @@ function updatePort($odp_id, $port_number) {
     $data = getRequestData();
     
     try {
-        $stmt = $pdo->prepare("
-            UPDATE odp_ports 
-            SET status = ?, target = ?, connection_type = ?, target_port = ?
-            WHERE odp_id = ? AND port_number = ?
-        ");
+        $stmt = $pdo->prepare("UPDATE odp_ports SET status = ?, target = ?, connection_type = ?, target_port = ?, onu_id = ? WHERE odp_id = ? AND port_number = ?");
         $stmt->execute([
             $data['status'] ?? 'available',
             $data['target'] ?? null,
             $data['connection_type'] ?? null,
             $data['target_port'] ?? null,
+            $data['onu_id'] ?? null,
             $odp_id,
             $port_number
         ]);
