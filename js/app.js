@@ -69,16 +69,58 @@ async function loadUserInfo() {
             if (data.user) {
                 const userDisplay = document.getElementById('userDisplayName');
                 if (userDisplay) {
-                    userDisplay.textContent = data.user.full_name;
+                    userDisplay.textContent = data.user.full_name + ' (' + data.user.role.toUpperCase() + ')';
                 }
                 window.currentUser = data.user;
+                
+                // Sembunyikan tombol tambah untuk viewer
+                const actionButtons = document.getElementById('actionButtons');
+                if (actionButtons && data.user.role === 'viewer') {
+                    actionButtons.style.display = 'none';
+                }
+                
+                // Tampilkan tombol manajemen user untuk admin
+                const btnUserManagement = document.getElementById('btnUserManagement');
+                if (btnUserManagement && data.user.role === 'admin') {
+                    btnUserManagement.style.display = 'inline-block';
+                }
             }
         }
     } catch (error) {
         console.error('Failed to load user info:', error);
     }
 }
-
+async function loadUserInfo() {
+    try {
+        const response = await fetch(`${API_BASE}/auth.php?action=me`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.user) {
+                const userDisplay = document.getElementById('userDisplayName');
+                if (userDisplay) {
+                    userDisplay.textContent = data.user.full_name + ' (' + data.user.role.toUpperCase() + ')';
+                }
+                window.currentUser = data.user;
+                
+                // Tampilkan tombol manajemen user untuk admin
+                const btnUserManagement = document.getElementById('btnUserManagement');
+                if (btnUserManagement && data.user.role === 'admin') {
+                    btnUserManagement.style.display = 'inline-block';
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load user info:', error);
+    }
+}
 // Logout function
 async function logout() {
     if (!confirm('Apakah Anda yakin ingin logout?')) return;

@@ -1,6 +1,24 @@
 <?php
 require_once 'config.php';
 
+// Proteksi: harus login
+requireAuth();
+
+// Konfigurasi port: hanya admin dan operator
+checkRole(['admin', 'operator']);
+
+$method = $_SERVER['REQUEST_METHOD'];
+$odp_id = isset($_GET['odp_id']) ? (int)$_GET['odp_id'] : null;
+$port_number = isset($_GET['port']) ? (int)$_GET['port'] : null;
+
+switch($method) {
+    case 'PUT':
+        updatePort($odp_id, $port_number);
+        break;
+    default:
+        sendResponse(['error' => 'Method not allowed'], 405);
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 $odp_id = isset($_GET['odp_id']) ? (int)$_GET['odp_id'] : null;
 $port_number = isset($_GET['port']) ? (int)$_GET['port'] : null;

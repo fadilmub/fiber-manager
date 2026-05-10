@@ -1,6 +1,40 @@
 <?php
 require_once 'config.php';
 
+// Proteksi: harus login
+requireAuth();
+
+$method = $_SERVER['REQUEST_METHOD'];
+$id = isset($_GET['id']) ? (int)$_GET['id'] : null;
+
+switch($method) {
+    case 'GET':
+        // GET: semua role bisa melihat (admin, operator, viewer)
+        if ($id) {
+            getODC($id);
+        } else {
+            getAllODC();
+        }
+        break;
+    case 'POST':
+        // POST: hanya admin dan operator yang bisa menambah
+        checkRole(['admin', 'operator']);
+        createODC();
+        break;
+    case 'PUT':
+        // PUT: hanya admin dan operator yang bisa mengedit
+        checkRole(['admin', 'operator']);
+        updateODC($id);
+        break;
+    case 'DELETE':
+        // DELETE: hanya admin yang bisa menghapus
+        checkRole(['admin']);
+        deleteODC($id);
+        break;
+    default:
+        sendResponse(['error' => 'Method not allowed'], 405);
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
 

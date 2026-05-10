@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manajemen User - Fiber Manager</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .user-management {
+            max-width: 1100px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .header h2 {
+            color: #2d3748;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5a67d8;
+        }
+        
+        .btn-secondary {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #38a169;
+        }
+        
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+        
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        
+        .user-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .user-table th, .user-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .user-table th {
+            background: #f7fafc;
+            color: #4a5568;
+            font-weight: 600;
+        }
+        
+        .user-table tr:hover {
+            background: #f7fafc;
+        }
+        
+        .badge {
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .badge-admin {
+            background: #fed7d7;
+            color: #c53030;
+        }
+        
+        .badge-operator {
+            background: #c6f6d5;
+            color: #2f855a;
+        }
+        
+        .badge-viewer {
+            background: #fefcbf;
+            color: #975a16;
+        }
+        
+        .badge-active {
+            background: #c6f6d5;
+            color: #2f855a;
+        }
+        
+        .badge-inactive {
+            background: #e2e8f0;
+            color: #718096;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+        }
+        
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        .modal-footer {
+            padding: 20px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #4a5568;
+        }
+        
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .alert {
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .alert-error {
+            background: #fff5f5;
+            color: #c53030;
+            border-left: 4px solid #c53030;
+        }
+        
+        .alert-success {
+            background: #f0fff4;
+            color: #2f855a;
+            border-left: 4px solid #48bb78;
+        }
+        
+        .close {
+            font-size: 24px;
+            cursor: pointer;
+            color: #a0aec0;
+        }
+        
+        .close:hover {
+            color: #4a5568;
+        }
+    </style>
+</head>
+<body>
+    <div class="user-management">
+        <div class="header">
+            <div>
+                <h2><i class="fas fa-users-cog"></i> Manajemen User</h2>
+                <p style="color: #718096; margin-top: 5px;">Kelola pengguna aplikasi Fiber Manager</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-secondary" onclick="window.location.href='index.html'">
+                    <i class="fas fa-arrow-left"></i> Kembali ke Aplikasi
+                </button>
+                <button class="btn btn-primary" onclick="showAddUserModal()">
+                    <i class="fas fa-user-plus"></i> Tambah User
+                </button>
+            </div>
+        </div>
+        
+        <div id="messageBox"></div>
+        
+        <table class="user-table" id="userTable">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Nama Lengkap</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Last Login</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody id="userTableBody">
+                <tr>
+                    <td colspan="6" style="text-align: center;">Loading...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Modal Tambah/Edit User -->
+    <div class="modal" id="userModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="userModalTitle">Tambah User</h3>
+                <span class="close" onclick="closeModal('userModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="userForm">
+                    <input type="hidden" id="userId">
+                    
+                    <div class="form-group">
+                        <label>Username *</label>
+                        <input type="text" id="userUsername" required minlength="3">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Password * <small id="passwordHint">(minimal 6 karakter)</small></label>
+                        <input type="password" id="userPassword" minlength="6">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Nama Lengkap *</label>
+                        <input type="text" id="userFullName" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="userEmail">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>No. Telepon</label>
+                        <input type="text" id="userPhone">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Role *</label>
+                        <select id="userRole" required>
+                            <option value="admin">Admin - Akses Penuh</option>
+                            <option value="operator">Operator - Tambah/Edit Data</option>
+                            <option value="viewer">Viewer - Hanya Melihat</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="userStatus">
+                            <option value="1">Active</option>
+                            <option value="0">Inactive</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Catatan</label>
+                        <textarea id="userNotes" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" onclick="closeModal('userModal')">Batal</button>
+                <button class="btn btn-primary" onclick="saveUser()">Simpan</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Reset Password -->
+    <div class="modal" id="resetPasswordModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Reset Password</h3>
+                <span class="close" onclick="closeModal('resetPasswordModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="resetUserId">
+                <div class="form-group">
+                    <label>Password Baru *</label>
+                    <input type="password" id="newPassword" minlength="6" placeholder="Minimal 6 karakter">
+                </div>
+                <div class="form-group">
+                    <label>Konfirmasi Password Baru *</label>
+                    <input type="password" id="confirmPassword" minlength="6">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" onclick="closeModal('resetPasswordModal')">Batal</button>
+                <button class="btn btn-primary" onclick="resetUserPassword()">Reset Password</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = window.location.origin + '/fiber-manager/api';
+        let editingUserId = null;
+        
+        // Check auth on load
+        async function init() {
+            const isAuth = await checkAuth();
+            if (!isAuth) {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            // Check role
+            const user = await getCurrentUser();
+            if (!user || user.role !== 'admin') {
+                alert('Hanya admin yang dapat mengakses halaman ini');
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            loadUsers();
+        }
+        
+        async function checkAuth() {
+            try {
+                const response = await fetch(`${API_BASE}/auth.php?action=me`, {
+                    credentials: 'include'
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    return !!data.user;
+                }
+                return false;
+            } catch (error) {
+                return false;
+            }
+        }
+        
+        async function getCurrentUser() {
+            try {
+                const response = await fetch(`${API_BASE}/auth.php?action=me`, {
+                    credentials: 'include'
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.user;
+                }
+                return null;
+            } catch (error) {
+                return null;
+            }
+        }
+        
+        async function loadUsers() {
+            try {
+                const response = await fetch(`${API_BASE}/users.php`, {
+                    credentials: 'include'
+                });
+                
+                if (response.status === 401) {
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                const users = await response.json();
+                renderUserTable(users);
+            } catch (error) {
+                console.error('Error loading users:', error);
+                showMessage('Gagal memuat data user', 'error');
+            }
+        }
+        
+        function renderUserTable(users) {
+            const tbody = document.getElementById('userTableBody');
+            
+            if (!users || users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Tidak ada user</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = users.map(user => `
+                <tr>
+                    <td><strong>${user.username}</strong></td>
+                    <td>${user.full_name}</td>
+                    <td><span class="badge badge-${user.role}">${user.role.toUpperCase()}</span></td>
+                    <td><span class="badge badge-${user.is_active ? 'active' : 'inactive'}">${user.is_active ? 'Active' : 'Inactive'}</span></td>
+                    <td>${user.last_login ? new Date(user.last_login).toLocaleString('id-ID') : 'Never'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="editUser(${user.id})" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-secondary" onclick="showResetPasswordModal(${user.id})" title="Reset Password">
+                            <i class="fas fa-key"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteUser(${user.id}, '${user.username}')" title="Hapus">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        function showAddUserModal() {
+            editingUserId = null;
+            document.getElementById('userModalTitle').textContent = 'Tambah User';
+            document.getElementById('userId').value = '';
+            document.getElementById('userUsername').value = '';
+            document.getElementById('userPassword').value = '';
+            document.getElementById('userPassword').required = true;
+            document.getElementById('passwordHint').textContent = '(minimal 6 karakter)';
+            document.getElementById('userFullName').value = '';
+            document.getElementById('userEmail').value = '';
+            document.getElementById('userPhone').value = '';
+            document.getElementById('userRole').value = 'operator';
+            document.getElementById('userStatus').value = '1';
+            document.getElementById('userNotes').value = '';
+            document.getElementById('userModal').classList.add('show');
+        }
+        
+        async function editUser(id) {
+            try {
+                const response = await fetch(`${API_BASE}/users.php?id=${id}`, {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    showMessage('Gagal memuat data user', 'error');
+                    return;
+                }
+                
+                const user = await response.json();
+                
+                editingUserId = user.id;
+                document.getElementById('userModalTitle').textContent = 'Edit User';
+                document.getElementById('userId').value = user.id;
+                document.getElementById('userUsername').value = user.username;
+                document.getElementById('userPassword').value = '';
+                document.getElementById('userPassword').required = false;
+                document.getElementById('passwordHint').textContent = '(kosongkan jika tidak ingin mengubah)';
+                document.getElementById('userFullName').value = user.full_name || '';
+                document.getElementById('userEmail').value = user.email || '';
+                document.getElementById('userPhone').value = user.phone || '';
+                document.getElementById('userRole').value = user.role;
+                document.getElementById('userStatus').value = user.is_active ? '1' : '0';
+                document.getElementById('userNotes').value = user.notes || '';
+                document.getElementById('userModal').classList.add('show');
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('Gagal memuat data user', 'error');
+            }
+        }
+        
+        async function saveUser() {
+            const form = document.getElementById('userForm');
+            
+            // Validasi
+            const username = document.getElementById('userUsername').value.trim();
+            const password = document.getElementById('userPassword').value;
+            const fullName = document.getElementById('userFullName').value.trim();
+            
+            if (!username || !fullName) {
+                showMessage('Username dan nama lengkap harus diisi', 'error');
+                return;
+            }
+            
+            if (!editingUserId && !password) {
+                showMessage('Password harus diisi untuk user baru', 'error');
+                return;
+            }
+            
+            if (password && password.length < 6) {
+                showMessage('Password minimal 6 karakter', 'error');
+                return;
+            }
+            
+            const data = {
+                username: username,
+                full_name: fullName,
+                email: document.getElementById('userEmail').value.trim(),
+                phone: document.getElementById('userPhone').value.trim(),
+                role: document.getElementById('userRole').value,
+                is_active: parseInt(document.getElementById('userStatus').value),
+                notes: document.getElementById('userNotes').value.trim()
+            };
+            
+            if (password) {
+                data.password = password;
+            }
+            
+            try {
+                const url = editingUserId ? `${API_BASE}/users.php?id=${editingUserId}` : `${API_BASE}/users.php`;
+                const method = editingUserId ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    closeModal('userModal');
+                    loadUsers();
+                    showMessage(result.message || 'User berhasil disimpan', 'success');
+                } else {
+                    showMessage(result.error || 'Gagal menyimpan user', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('Gagal menyimpan user', 'error');
+            }
+        }
+        
+        function showResetPasswordModal(id) {
+            document.getElementById('resetUserId').value = id;
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+            document.getElementById('resetPasswordModal').classList.add('show');
+        }
+        
+        async function resetUserPassword() {
+            const id = document.getElementById('resetUserId').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (!newPassword) {
+                showMessage('Password baru harus diisi', 'error');
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                showMessage('Konfirmasi password tidak cocok', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/users.php?id=${id}&action=reset-password`, {
+                    method: 'PUT',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ new_password: newPassword })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    closeModal('resetPasswordModal');
+                    showMessage('Password berhasil direset', 'success');
+                } else {
+                    showMessage(result.error || 'Gagal mereset password', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('Gagal mereset password', 'error');
+            }
+        }
+        
+        async function deleteUser(id, username) {
+            if (!confirm(`Yakin ingin menghapus user "${username}"?`)) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/users.php?id=${id}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    loadUsers();
+                    showMessage(result.message || 'User berhasil dihapus', 'success');
+                } else {
+                    showMessage(result.error || 'Gagal menghapus user', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('Gagal menghapus user', 'error');
+            }
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+        }
+        
+        function showMessage(message, type = 'info') {
+            const box = document.getElementById('messageBox');
+            box.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+            setTimeout(() => {
+                box.innerHTML = '';
+            }, 3000);
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.classList.remove('show');
+            }
+        };
+        
+        // Initialize
+        init();
+    </script>
+</body>
+</html>

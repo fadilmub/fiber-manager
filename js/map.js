@@ -18,7 +18,7 @@ let highlightedMarker = null;
 
 // Initialize map
 function initMap() {
-    map = L.map('map').setView([-6.2088, 106.8456], 13);
+    map = L.map('map').setView([-6.966409024897329, 109.6469502011238], 13);
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
@@ -324,6 +324,8 @@ function drawConnectionLine(odp, source) {
 function createPopupContent(device) {
     const isODC = devices.odc.some(d => d.id === device.id);
     const type = isODC ? 'ODC' : 'ODP';
+    const currentUser = window.currentUser;
+    const canEdit = currentUser && (currentUser.role === 'admin' || currentUser.role === 'operator');
     
     let content = `
         <div style="min-width: 220px;">
@@ -340,10 +342,8 @@ function createPopupContent(device) {
             <p><strong>ODP Terhubung:</strong> ${device.connected_odps || 0}</p>
         `;
     } else {
-        // Tampilkan status kapasitas dengan warna
         const available = device.available_ports || 0;
         const total = device.total_ports || 0;
-        const used = total - available;
         const percentage = total > 0 ? Math.round((available / total) * 100) : 0;
         
         let statusText = '';
@@ -366,15 +366,15 @@ function createPopupContent(device) {
         content += `
             <p><strong>Sumber:</strong> ${device.source_name || 'Tidak ada'}</p>
             <p><strong>Total Port:</strong> ${total}</p>
-            <p><strong>Port Tersedia:</strong> ${available} (${percentage}%)</p>
-            <p><strong>Port Terpakai:</strong> ${used}</p>
             <p style="color: ${statusColor}; font-weight: bold;">
-                Status: ${statusText}
+                Status: ${statusText} (${available} tersedia)
             </p>
         `;
     }
     
-    content += `
+    // Tombol edit/hapus hanya untuk admin & operator
+    if (canEdit) {
+        content += `
             <button onclick="editDevice('${device.id}', '${type.toLowerCase()}')" 
                     style="margin-top: 10px; padding: 5px 10px; background: #4299e1; color: white; border: none; border-radius: 3px; cursor: pointer; margin-right: 5px;">
                 <i class="fas fa-edit"></i> Edit
@@ -383,8 +383,10 @@ function createPopupContent(device) {
                     style="margin-top: 10px; padding: 5px 10px; background: #f56565; color: white; border: none; border-radius: 3px; cursor: pointer;">
                 <i class="fas fa-trash"></i> Hapus
             </button>
-        </div>
-    `;
+        `;
+    }
+    
+    content += `</div>`;
     
     return content;
 }
@@ -399,6 +401,8 @@ function showDeviceInfo(device) {
     const content = document.getElementById('infoContent');
     
     const isODC = devices.odc.some(d => d.id === device.id);
+    const currentUser = window.currentUser;
+    const canEdit = currentUser && (currentUser.role === 'admin' || currentUser.role === 'operator');
     
     title.textContent = device.name;
     
@@ -409,7 +413,7 @@ function showDeviceInfo(device) {
             <p><strong>Lokasi:</strong> ${device.location}</p>
             <p><strong>Koordinat:</strong> ${parseFloat(device.lat).toFixed(8)}, ${parseFloat(device.lng).toFixed(8)}</p>
     `;
-    
+
     if (isODC) {
         html += `
             <p><strong>Kapasitas Port:</strong> ${device.capacity}</p>
@@ -510,6 +514,29 @@ function showDeviceInfo(device) {
             if (maintenancePorts.length > 0) {
                 html += `<p><strong>Port Maintenance:</strong> ${maintenancePorts.map(p => p.port_number).join(', ')}</p>`;
             }
+            if (canEdit) {
+                html += `
+                    <div style="margin-top: 15px;">
+                        <button onclick="editDevice('${device.id}', '${isODC ? 'odc' : 'odp'}')" class="btn-icon btn-edit">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button onclick="deleteDevice('${device.id}', '${isODC ? 'odc' : 'odp'}')" class="btn-icon btn-delete">
+                            <i class="fas fa-trash"></i> Hapus
+                        </button>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div style="margin-top: 15px; padding: 10px; background: #fefcbf; border-radius: 5px; color: #975a16; font-size: 12px;">
+                        <i class="fas fa-info-circle"></i> Anda login sebagai <strong>Viewer</strong>. Hanya dapat melihat data.
+                    </div>
+                `;
+            }
+            
+            html += `</div>`;
+            
+            content.innerHTML = html;
+            panel.classList.add('show');
         }
         
         // Grid port visual
@@ -671,6 +698,8 @@ function refreshDeviceList() {
     const container = document.getElementById('deviceList');
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
     const activeFilter = document.querySelector('.filter-btn.active')?.dataset.filter || 'all';
+    const currentUser = window.currentUser;
+    const canEdit = currentUser && (currentUser.role === 'admin' || currentUser.role === 'operator');
     
     const allDevices = [
         ...devices.odc.map(d => ({...d, type: 'odc'})), 
@@ -699,15 +728,29 @@ function refreshDeviceList() {
         } else {
             const available = device.available_ports || 0;
             const total = device.total_ports || 0;
-            const status = getODPStatus(available, total);
+            const percentage = total > 0 ? Math.round((available / total) * 100) : 0;
             
             let statusEmoji = '🟢';
-            if (status === 'warning') statusEmoji = '🟡';
-            else if (status === 'critical') statusEmoji = '🔴';
-            else if (status === 'full') statusEmoji = '⚫';
+            if (percentage <= 50 && percentage > 20) statusEmoji = '🟡';
+            else if (percentage <= 20 && percentage > 0) statusEmoji = '🔴';
+            else if (percentage === 0) statusEmoji = '⚫';
             
             statusIndicator = `<span style="float: right;">${statusEmoji}</span>`;
-            infoHtml = `Port: ${available}/${total} tersedia | Sumber: ${device.source_name || '-'}`;
+            infoHtml = `Port: ${available}/${total} tersedia (${percentage}%) | Sumber: ${device.source_name || '-'}`;
+        }
+        
+        let actionsHtml = '';
+        if (canEdit) {
+            actionsHtml = `
+                <div class="device-actions">
+                    <button class="btn-icon btn-edit" onclick="event.stopPropagation(); editDevice('${device.id}', '${device.type}')">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-icon btn-delete" onclick="event.stopPropagation(); deleteDevice('${device.id}', '${device.type}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
         }
         
         div.innerHTML = `
@@ -717,14 +760,7 @@ function refreshDeviceList() {
             </div>
             <div class="device-info">${infoHtml}</div>
             <div class="device-info">${device.location}</div>
-            <div class="device-actions">
-                <button class="btn-icon btn-edit" onclick="event.stopPropagation(); editDevice('${device.id}', '${device.type}')">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn-icon btn-delete" onclick="event.stopPropagation(); deleteDevice('${device.id}', '${device.type}')">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
+            ${actionsHtml}
         `;
         
         container.appendChild(div);

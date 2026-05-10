@@ -92,6 +92,21 @@ function getCurrentUser() {
     }
 }
 
+function checkRole($allowedRoles) {
+    $user = getCurrentUser();
+    if (!$user) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Unauthorized', 'message' => 'Silakan login terlebih dahulu']);
+        exit();
+    }
+    
+    if (!in_array($user['role'], $allowedRoles)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Forbidden', 'message' => 'Anda tidak memiliki akses untuk operasi ini']);
+        exit();
+    }
+}
+
 function sendResponse($data, $status = 200) {
     http_response_code($status);
     echo json_encode($data);
