@@ -73,8 +73,9 @@ function getAllODP() {
         ");
         $odps = $stmt->fetchAll();
         
-        // Get ports for each ODP
+        // Get ports and photos for each ODP
         foreach ($odps as &$odp) {
+            // Get ports
             $stmt2 = $pdo->prepare("SELECT * FROM odp_ports WHERE odp_id = ? ORDER BY port_number");
             $stmt2->execute([$odp['id']]);
             $odp['ports'] = $stmt2->fetchAll();
@@ -85,6 +86,19 @@ function getAllODP() {
                 if ($port['status'] === 'available') $available++;
             }
             $odp['available_ports'] = $available;
+            
+            // ============ TAMBAHKAN INI ============
+            // Get photos
+            $stmt3 = $pdo->prepare("
+                SELECT id, filename, original_name, is_primary, file_size, created_at,
+                       CONCAT('uploads/odp/', filename) as url
+                FROM odp_photos 
+                WHERE odp_id = ? 
+                ORDER BY is_primary DESC, created_at ASC
+            ");
+            $stmt3->execute([$odp['id']]);
+            $odp['photos'] = $stmt3->fetchAll();
+            // =====================================
         }
         
         sendResponse($odps);
@@ -119,6 +133,19 @@ function getODP($id) {
                 if ($port['status'] === 'available') $available++;
             }
             $odp['available_ports'] = $available;
+            
+            // ============ TAMBAHKAN INI ============
+            // Get photos
+            $stmt3 = $pdo->prepare("
+                SELECT id, filename, original_name, is_primary, file_size, created_at,
+                       CONCAT('uploads/odp/', filename) as url
+                FROM odp_photos 
+                WHERE odp_id = ? 
+                ORDER BY is_primary DESC, created_at ASC
+            ");
+            $stmt3->execute([$id]);
+            $odp['photos'] = $stmt3->fetchAll();
+            // =====================================
             
             sendResponse($odp);
         } else {

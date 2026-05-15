@@ -428,6 +428,7 @@ function showDeviceInfo(device) {
             });
         }
         html += `</ul>`;
+        html += renderPhotoGallery(device, 'odc');
     } else {
         // Status kapasitas dengan progress bar
         const available = device.available_ports || 0;
@@ -532,7 +533,13 @@ function showDeviceInfo(device) {
                     </div>
                 `;
             }
-            
+            // Di bagian akhir showDeviceInfo, sebelum tombol edit/delete:
+            if (isODC) {
+                html += renderPhotoGallery(device, 'odc');
+            } else {
+                html += renderPhotoGallery(device, 'odp');
+            }
+
             html += `</div>`;
             
             content.innerHTML = html;
@@ -718,6 +725,7 @@ function refreshDeviceList() {
         div.onclick = () => {
             showDeviceInfo(device);
             zoomToDevice(device.lat, device.lng);
+            handleDeviceClickMobile(); // 👈 TAMBAHKAN BARIS INI
         };
         
         let infoHtml = '';
@@ -766,3 +774,103 @@ function refreshDeviceList() {
         container.appendChild(div);
     });
 }
+// =============================================
+// SIDEBAR TOGGLE FUNCTIONS
+// =============================================
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    
+    if (!sidebar) {
+        console.error('Element #sidebar not found');
+        return;
+    }
+    
+    if (sidebar.classList.contains('open')) {
+        closeSidebar();
+    } else {
+        openSidebar();
+    }
+}
+
+function openSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const toggleMap = document.getElementById('sidebarToggleMap');
+    
+    if (!sidebar) return;
+    
+    sidebar.classList.add('open');
+    sidebar.classList.remove('closed');
+    
+    if (overlay) overlay.classList.add('active');
+    if (toggleMap) toggleMap.style.display = 'none';
+    
+    // Invalidate map size setelah sidebar terbuka
+    setTimeout(() => {
+        if (typeof map !== 'undefined' && map) {
+            map.invalidateSize();
+        }
+    }, 350);
+}
+
+function closeSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const toggleMap = document.getElementById('sidebarToggleMap');
+    
+    if (!sidebar) return;
+    
+    sidebar.classList.remove('open');
+    sidebar.classList.add('closed');
+    
+    if (overlay) overlay.classList.remove('active');
+    
+    // Tampilkan tombol buka sidebar di peta (mobile)
+    if (window.innerWidth <= 768) {
+        if (toggleMap) toggleMap.style.display = 'block';
+    }
+    
+    // Invalidate map size setelah sidebar tertutup
+    setTimeout(() => {
+        if (typeof map !== 'undefined' && map) {
+            map.invalidateSize();
+        }
+    }, 350);
+}
+
+// Tutup sidebar saat klik device di mobile
+function handleDeviceClickMobile() {
+    if (window.innerWidth <= 768) {
+        closeSidebar();
+    }
+}
+
+// Handle window resize
+window.addEventListener('resize', function() {
+    const toggleMap = document.getElementById('sidebarToggleMap');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    
+    if (!sidebar) return;
+    
+    if (window.innerWidth > 768) {
+        // Desktop: sidebar selalu terbuka
+        sidebar.classList.remove('closed', 'open');
+        if (toggleMap) toggleMap.style.display = 'none';
+        if (overlay) overlay.classList.remove('active');
+    } else {
+        // Mobile: sidebar tertutup default
+        if (!sidebar.classList.contains('open')) {
+            if (toggleMap) toggleMap.style.display = 'block';
+        }
+    }
+    
+    // Invalidate map size
+    setTimeout(() => {
+        if (typeof map !== 'undefined' && map) {
+            map.invalidateSize();
+        }
+    }, 350);
+});

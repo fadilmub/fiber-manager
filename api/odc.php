@@ -69,6 +69,20 @@ function getAllODC() {
             ORDER BY o.created_at DESC
         ");
         $odcs = $stmt->fetchAll();
+        
+        // Ambil foto untuk setiap ODC
+        foreach ($odcs as &$odc) {
+            $stmt2 = $pdo->prepare("
+                SELECT id, filename, original_name, is_primary, file_size, created_at,
+                       CONCAT('uploads/odc/', filename) as url
+                FROM odc_photos 
+                WHERE odc_id = ? 
+                ORDER BY is_primary DESC, created_at ASC
+            ");
+            $stmt2->execute([$odc['id']]);
+            $odc['photos'] = $stmt2->fetchAll();
+        }
+        
         sendResponse($odcs);
     } catch(PDOException $e) {
         sendResponse(['error' => $e->getMessage()], 500);
@@ -97,6 +111,17 @@ function getODC($id) {
             ");
             $stmt2->execute([$id]);
             $odc['connected_odps_list'] = $stmt2->fetchAll();
+            
+            // Get photos
+            $stmt3 = $pdo->prepare("
+                SELECT id, filename, original_name, is_primary, file_size, created_at,
+                       CONCAT('uploads/odc/', filename) as url
+                FROM odc_photos 
+                WHERE odc_id = ? 
+                ORDER BY is_primary DESC, created_at ASC
+            ");
+            $stmt3->execute([$id]);
+            $odc['photos'] = $stmt3->fetchAll();
             
             sendResponse($odc);
         } else {
