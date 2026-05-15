@@ -444,10 +444,10 @@ function showDeviceInfo(device) {
             statusText = '⚠️ PENUH - Tidak ada port tersedia';
         } else if (percentage > 80) {
             statusColor = '#f56565';
-            statusText = '🔴 Kritis - Segera perlu ODP tambahan';
+            statusText = '🔴 Kritis - Segera perlu ODP tambahan!';
         } else if (percentage > 50) {
             statusColor = '#ecc94b';
-            statusText = '🟡 Hampir Penuh - Monitor penggunaan';
+            statusText = '🟡 Hampir Penuh - Persiapan Penambahan';
         } else {
             statusColor = '#48bb78';
             statusText = '🟢 Normal - Port masih banyak tersedia';
