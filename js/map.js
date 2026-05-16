@@ -19,12 +19,20 @@ let highlightedMarker = null;
 // Initialize map
 function initMap() {
     map = L.map('map').setView([-6.966409024897329, 109.6469502011238], 13);
+        // Google Satellite Hybrid (satelit + label jalan)
+    L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+        attribution: '© Google',
+        maxZoom: 22,
+        maxNativeZoom: 20  // Zoom maksimal dari tile Google
+    }).addTo(map);
     
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // Layer group untuk marker
+    markersLayer = L.layerGroup().addTo(map);
+/*    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
     
-    markersLayer = L.layerGroup().addTo(map);
+    markersLayer = L.layerGroup().addTo(map); */
 }
 
 // Parse coordinate string to lat/lng
