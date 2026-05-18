@@ -130,9 +130,17 @@
                 
                 <div class="form-group">
                     <label>Berasal dari (ODC):</label>
-                    <select id="odpSource">
+                    <select id="odpSource" onchange="updateAvailableODCPorts()">
                         <option value="">Pilih ODC sumber...</option>
                     </select>
+                </div>
+
+                <div class="form-group" id="odpPortNumberGroup" style="display: none;">
+                    <label>Port di ODC:</label>
+                    <select id="odpPortNumber">
+                        <option value="">Pilih port...</option>
+                    </select>
+                    <small>Pilih port di ODC yang akan menghubungkan ke ODP ini</small>
                 </div>
                 
                 <div class="form-group">
