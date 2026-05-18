@@ -21,7 +21,7 @@ let highlightedMarker = null;
 function initMap() {
     map = L.map('map').setView([-6.966409024897329, 109.6469502011238], 13);
     // Google Satellite Hybrid (satelit + label jalan)
-    L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+    L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
         attribution: '© Google',
         maxZoom: 22,
         maxNativeZoom: 20
