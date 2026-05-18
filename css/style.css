@@ -46,29 +46,25 @@ body {
    SIDEBAR TOGGLE BUTTONS
    ============================================= */
 .sidebar-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: absolute;
-    top: 15px;
-    left: 15px;
-    z-index: 1100;
-    background: white;
-    color: var(--gray-700);
-    border: 1px solid var(--gray-300);
+    display: none;
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 2000;
+    background: var(--primary);
+    color: white;
+    border: none;
     width: 40px;
     height: 40px;
     border-radius: 8px;
     cursor: pointer;
     font-size: 18px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    transition: all 0.3s ease;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    transition: all 0.3s;
 }
 
 .sidebar-toggle:hover {
-    background: var(--gray-100);
-    border-color: var(--primary);
-    color: var(--primary);
+    background: var(--primary-dark);
     transform: scale(1.05);
 }
 
@@ -122,17 +118,12 @@ body {
     display: flex;
     flex-direction: column;
     z-index: 1500;
-    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.3s ease, margin-left 0.3s ease;
     height: 100vh;
 }
 
 .sidebar.closed {
     margin-left: calc(-1 * var(--sidebar-width));
-    box-shadow: none;
-}
-
-.sidebar.closed .sidebar-toggle {
-    left: 0;
 }
 
 .sidebar-header {
@@ -148,9 +139,7 @@ body {
 }
 
 .sidebar-close {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: none;
     position: absolute;
     top: 10px;
     right: 10px;
@@ -162,11 +151,6 @@ body {
     border-radius: 50%;
     cursor: pointer;
     font-size: 14px;
-    transition: all 0.2s;
-}
-
-.sidebar-close:hover {
-    background: rgba(255,255,255,0.3);
 }
 
 .user-info {
@@ -459,7 +443,6 @@ body {
     flex: 1;
     position: relative;
     min-width: 0;
-    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #map {
@@ -870,30 +853,23 @@ form {
     }
 }
 
-/* Desktop (>= 1025px) - Toggle button di map */
-@media (min-width: 1025px) {
-    .sidebar-toggle {
-        position: absolute;
-        left: 15px;
-    }
-}
-
-/* Tablet/Desktop (769px - 1024px) - Sidebar narrower */
-@media (max-width: 1024px) and (min-width: 769px) {
-    :root {
-        --sidebar-width: 300px;
-    }
-    
-    .sidebar-toggle {
-        position: absolute;
-        left: 15px;
-    }
-}
-
 /* Mobile (< 768px) */
 @media (max-width: 768px) {
     :root {
         --sidebar-width: 320px;
+    }
+    
+    /* Tampilkan tombol toggle */
+    .sidebar-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .sidebar-close {
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
     
     .sidebar-toggle-map {
@@ -920,13 +896,6 @@ form {
     .sidebar.closed {
         margin-left: 0;
         transform: translateX(-100%);
-    }
-    
-    .sidebar-toggle {
-        position: fixed;
-        top: 10px;
-        left: 10px;
-        z-index: 2000;
     }
     
     /* Map full width */

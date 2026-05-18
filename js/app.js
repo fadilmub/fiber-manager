@@ -199,12 +199,14 @@ async function showAddODPDialog() {
     document.getElementById('modalTitle').textContent = 'Tambah ODP';
     document.getElementById('odpForm').reset();
     document.getElementById('odpId').value = '';
+    document.getElementById('odcPortGroup').style.display = 'none';
     
     await populateSourceDropdown();
     generatePortStatusInputs();
     
     document.getElementById('odpModal').classList.add('show');
 }
+
 
 // Show add ODC dialog
 function showAddODCDialog() {
@@ -214,8 +216,8 @@ function showAddODCDialog() {
     document.getElementById('odcModal').classList.add('show');
 }
 
-// Populate source dropdown - hanya ODC
-async function populateSourceDropdown() {
+// Update populateSourceDropdown
+async function populateSourceDropdown(selectedSourceId = null, selectedPort = null) {
     const sourceSelect = document.getElementById('odpSource');
     sourceSelect.innerHTML = '<option value="">Pilih ODC sumber...</option>';
     
@@ -223,10 +225,74 @@ async function populateSourceDropdown() {
         const option = document.createElement('option');
         option.value = odc.id;
         option.dataset.type = 'odc';
-        option.textContent = `${odc.name} (ODC)`;
+        const used = odc.used_ports || 0;
+        const available = odc.capacity - used;
+        option.textContent = `${odc.name} (ODC - ${used}/${odc.capacity} port, ${available} tersedia)`;
+        if (selectedSourceId && selectedSourceId == odc.id) {
+            option.selected = true;
+        }
         sourceSelect.appendChild(option);
     });
+    
+    // Load ports jika ada selectedSourceId
+    if (selectedSourceId) {
+        await loadODCPortsForEdit(selectedSourceId, selectedPort);
+    }
 }
+async function loadODCPortsForEdit(odcId, selectedPort = null) {
+    const portGroup = document.getElementById('odcPortGroup');
+    const portSelect = document.getElementById('odpPortInODC');
+    
+    if (!odcId) {
+        portGroup.style.display = 'none';
+        return;
+    }
+    
+    portGroup.style.display = 'block';
+    portSelect.innerHTML = '<option value="">Loading port...</option>';
+    
+    try {
+        const response = await fetch(`${API_BASE}/odc.php?id=${odcId}&ports=true`, {
+            credentials: 'include'
+        });
+        
+        if (response.ok) {
+            const ports = await response.json();
+            portSelect.innerHTML = '<option value="">Pilih port...</option>';
+            
+            ports.forEach(port => {
+                const option = document.createElement('option');
+                option.value = port.port_number;
+                
+                let statusText = '';
+                let disabled = false;
+                
+                if (port.status === 'used' && port.port_number != selectedPort) {
+                    statusText = `❌ Terpakai oleh ${port.odp_name || 'ODP'}`;
+                    disabled = true;
+                } else if (port.status === 'used' && port.port_number == selectedPort) {
+                    statusText = `🔗 Terhubung (ODP ini)`;
+                    disabled = false;
+                } else {
+                    statusText = '✅ Tersedia';
+                }
+                
+                option.textContent = `Port ${port.port_number} - ${statusText}`;
+                option.disabled = disabled;
+                
+                if (selectedPort == port.port_number) {
+                    option.selected = true;
+                }
+                
+                portSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading ports:', error);
+        portSelect.innerHTML = '<option value="">Gagal memuat port</option>';
+    }
+}
+
 
 // Generate port status inputs
 function generatePortStatusInputs(existingPorts = null) {
@@ -410,11 +476,12 @@ async function fetchWithAuth(url, options = {}) {
     }
 }
 
-// Save ODP
+// Update fungsi saveODP
 async function saveODP() {
     const id = document.getElementById('odpId').value;
     const sourceSelect = document.getElementById('odpSource');
     const selectedOption = sourceSelect.selectedOptions[0];
+    const portInODC = document.getElementById('odpPortInODC').value;
     const coordString = document.getElementById('odpCoordinates').value.trim();
     
     const coords = parseCoordinates(coordString);
@@ -427,6 +494,7 @@ async function saveODP() {
         name: document.getElementById('odpName').value,
         source_id: sourceSelect.value || null,
         source_type: selectedOption ? selectedOption.dataset.type : null,
+        port_number_in_odc: portInODC || null,
         lat: coords.lat,
         lng: coords.lng,
         location: document.getElementById('odpLocation').value,
@@ -434,8 +502,19 @@ async function saveODP() {
         description: document.getElementById('odpDescription').value
     };
     
+    if (!data.name) {
+        alert('Nama ODP harus diisi');
+        return;
+    }
+    
     if (!data.location) {
         alert('Alamat lokasi harus diisi');
+        return;
+    }
+    
+    // Validasi: jika pilih ODC, wajib pilih port
+    if (data.source_type === 'odc' && data.source_id && !data.port_number_in_odc) {
+        alert('Silakan pilih port ODC yang akan digunakan!');
         return;
     }
     
@@ -450,26 +529,20 @@ async function saveODP() {
         
         if (!response) return;
         
+        const result = await response.json();
+        
         if (response.ok) {
+            // Upload foto jika ada
+            const deviceId = id || result.id;
+            if (deviceId) {
+                await uploadPhotos(deviceId, 'odp');
+            }
+            
             closeModal('odpModal');
             await loadDevices();
             alert('ODP berhasil disimpan');
         } else {
-            const error = await response.json();
-            alert('Gagal menyimpan ODP: ' + (error.error || 'Unknown error'));
-        }
-        if (response.ok) {
-        const result = await response.json();
-        const deviceId = id || result.id;
-        
-        // Upload foto jika ada
-        if (deviceId) {
-            const photos = await uploadPhotos(deviceId, 'odp');
-        }
-        
-        closeModal('odpModal');
-        await loadDevices();
-        alert('ODP berhasil disimpan');
+            alert('Gagal menyimpan ODP: ' + (result.error || 'Unknown error'));
         }
     } catch (error) {
         console.error('Error:', error);
@@ -814,6 +887,11 @@ async function editDevice(id, type) {
         }
         if (device.source_id) {
             document.getElementById('odpSource').value = device.source_id;
+            if (device.port_number_in_odc) {
+                await loadODCPortsForEdit(device.source_id, device.port_number_in_odc);
+            } else {
+                await loadODCPortsForEdit(device.source_id);
+            }
         }
         
         generatePortStatusInputs(device.ports);
@@ -889,6 +967,52 @@ function searchCustomer() {
     });
     
     resultsContainer.innerHTML = html;
+}
+async function onODCSourceChange() {
+    const odcId = document.getElementById('odpSource').value;
+    const portGroup = document.getElementById('odcPortGroup');
+    const portSelect = document.getElementById('odpPortInODC');
+    
+    if (!odcId) {
+        portGroup.style.display = 'none';
+        return;
+    }
+    
+    portGroup.style.display = 'block';
+    portSelect.innerHTML = '<option value="">Loading port...</option>';
+    
+    try {
+        const response = await fetch(`${API_BASE}/odc.php?id=${odcId}&ports=true`, {
+            credentials: 'include'
+        });
+        
+        if (response.ok) {
+            const ports = await response.json();
+            portSelect.innerHTML = '<option value="">Pilih port...</option>';
+            
+            ports.forEach(port => {
+                const option = document.createElement('option');
+                option.value = port.port_number;
+                
+                let statusText = '';
+                let disabled = false;
+                
+                if (port.status === 'used') {
+                    statusText = `❌ Terpakai oleh ${port.odp_name || 'ODP'}`;
+                    disabled = true;
+                } else {
+                    statusText = '✅ Tersedia';
+                }
+                
+                option.textContent = `Port ${port.port_number} - ${statusText}`;
+                option.disabled = disabled;
+                portSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading ports:', error);
+        portSelect.innerHTML = '<option value="">Gagal memuat port</option>';
+    }
 }
 
 function closeModal(modalId) {

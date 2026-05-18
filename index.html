@@ -128,19 +128,20 @@
                     <input type="text" id="odpName" placeholder="Contoh: ODP-FT-001" required>
                 </div>
                 
+                <!-- Form ODP - update bagian ini -->
                 <div class="form-group">
                     <label>Berasal dari (ODC):</label>
-                    <select id="odpSource" onchange="updateAvailableODCPorts()">
+                    <select id="odpSource" onchange="onODCSourceChange()">
                         <option value="">Pilih ODC sumber...</option>
                     </select>
                 </div>
 
-                <div class="form-group" id="odpPortNumberGroup" style="display: none;">
-                    <label>Port di ODC:</label>
-                    <select id="odpPortNumber">
+                <div class="form-group" id="odcPortGroup" style="display: none;">
+                    <label>Pilih Port di ODC:</label>
+                    <select id="odpPortInODC">
                         <option value="">Pilih port...</option>
                     </select>
-                    <small>Pilih port di ODC yang akan menghubungkan ke ODP ini</small>
+                    <small id="portInfoText">Pilih port ODC yang akan dihubungkan ke ODP ini</small>
                 </div>
                 
                 <div class="form-group">
