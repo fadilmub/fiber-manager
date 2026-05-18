@@ -10,6 +10,7 @@ let devices = { odc: [], odp: [] };
 let currentEditingDevice = null;
 let currentPortConfig = { deviceId: null, portNumber: null };
 let odpMarkers = {};
+let odpLines = {};
 let highlightedMarker = null;
 
 // =============================================
@@ -19,20 +20,20 @@ let highlightedMarker = null;
 // Initialize map
 function initMap() {
     map = L.map('map').setView([-6.966409024897329, 109.6469502011238], 13);
-        // Google Satellite Hybrid (satelit + label jalan)
-    L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+    // Google Satellite Hybrid (satelit + label jalan)
+    L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
         attribution: '© Google',
         maxZoom: 22,
         maxNativeZoom: 20  // Zoom maksimal dari tile Google
     }).addTo(map);
-    
+
     // Layer group untuk marker
     markersLayer = L.layerGroup().addTo(map);
-/*    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
-    
-    markersLayer = L.layerGroup().addTo(map); */
+    /*    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        markersLayer = L.layerGroup().addTo(map); */
 }
 
 // Parse coordinate string to lat/lng
@@ -65,7 +66,7 @@ function searchAndZoom() {
         alert('Format koordinat tidak valid!\n\nGunakan format: latitude, longitude\nContoh: -6.963707888562949, 109.64706473647041');
         return;
     }
-    
+
     const tempMarker = L.marker([coords.lat, coords.lng], {
         icon: L.divIcon({
             html: '<i class="fas fa-map-marker-alt" style="font-size: 24px; color: #e53e3e;"></i>',
@@ -74,7 +75,7 @@ function searchAndZoom() {
             iconAnchor: [12, 24]
         })
     }).addTo(map);
-    
+
     tempMarker.bindPopup(`<b>Lokasi Pencarian</b><br>${coords.lat}, ${coords.lng}`).openPopup();
     setTimeout(() => { map.removeLayer(tempMarker); }, 10000);
     map.setView([coords.lat, coords.lng], 17);
@@ -88,7 +89,7 @@ async function fetchWithAuth(url, options = {}) {
             'Accept': 'application/json'
         }
     };
-    
+
     const mergedOptions = {
         ...defaultOptions,
         ...options,
@@ -97,15 +98,15 @@ async function fetchWithAuth(url, options = {}) {
             ...(options.headers || {})
         }
     };
-    
+
     try {
         const response = await fetch(url, mergedOptions);
-        
+
         if (response.status === 401) {
             window.location.href = 'login.html';
             return null;
         }
-        
+
         return response;
     } catch (error) {
         console.error('Fetch error:', error);
@@ -120,15 +121,15 @@ async function loadDevices() {
             fetchWithAuth(`${API_BASE}/odc.php`),
             fetchWithAuth(`${API_BASE}/odp.php`)
         ]);
-        
+
         if (!odcRes || !odpRes) return;
-        
+
         const odcData = await odcRes.json();
         const odpData = await odpRes.json();
-        
+
         devices.odc = Array.isArray(odcData) ? odcData : [];
         devices.odp = Array.isArray(odpData) ? odpData : [];
-        
+
         refreshMapMarkers();
         refreshDeviceList();
     } catch (error) {
@@ -150,9 +151,9 @@ async function loadDevices() {
  */
 function getODPStatus(available, total) {
     if (total === 0) return 'full';
-    
+
     const percentage = (available / total) * 100;
-    
+
     if (available === 0) return 'full';           // 0% tersedia = penuh
     if (percentage < 20) return 'critical';        // < 20% = kritis (merah)
     if (percentage <= 50) return 'warning';        // 20-50% = hampir penuh (kuning)
@@ -165,7 +166,7 @@ function getODPStatus(available, total) {
  * @returns {string} CSS filter untuk warna yang sesuai
  */
 function getColorFilter(status) {
-    switch(status) {
+    switch (status) {
         case 'normal':
             // Hijau - tanpa filter (gunakan PNG asli jika sudah hijau)
             return 'none';
@@ -189,7 +190,7 @@ function getColorFilter(status) {
  * @returns {string} Warna dalam hex
  */
 function getStatusColor(status) {
-    switch(status) {
+    switch (status) {
         case 'normal': return '#48bb78';    // Hijau
         case 'warning': return '#ecc94b';   // Kuning
         case 'critical': return '#f56565';  // Merah
@@ -226,13 +227,13 @@ function createODCIcon() {
 // Create custom ODP icon DENGAN WARNA DINAMIS berdasarkan kapasitas
 function createODPIcon(availablePorts = null, totalPorts = null) {
     let status = 'normal';
-    
+
     if (availablePorts !== null && totalPorts !== null) {
         status = getODPStatus(availablePorts, totalPorts);
     }
-    
+
     const borderColor = getStatusColor(status);
-    
+
     return L.divIcon({
         html: `
             <div style="
@@ -275,33 +276,34 @@ function createODPIcon(availablePorts = null, totalPorts = null) {
 function refreshMapMarkers() {
     markersLayer.clearLayers();
     odpMarkers = {};
-    
+    odpLines = {};
+
     // Render ODC markers
     devices.odc.forEach(odc => {
         const marker = L.marker(
-            [parseFloat(odc.lat), parseFloat(odc.lng)], 
+            [parseFloat(odc.lat), parseFloat(odc.lng)],
             { icon: createODCIcon() }
         ).addTo(markersLayer);
-        
+
         marker.bindPopup(createPopupContent(odc));
         marker.on('click', () => showDeviceInfo(odc));
     });
-    
+
     // Render ODP markers DENGAN WARNA SESUAI KAPASITAS
     devices.odp.forEach(odp => {
         const icon = createODPIcon(odp.available_ports, odp.total_ports);
-        
+
         const marker = L.marker(
-            [parseFloat(odp.lat), parseFloat(odp.lng)], 
+            [parseFloat(odp.lat), parseFloat(odp.lng)],
             { icon: icon }
         ).addTo(markersLayer);
-        
+
         marker.bindPopup(createPopupContent(odp));
         marker.on('click', () => showDeviceInfo(odp));
-        
+
         // Simpan referensi marker
         odpMarkers[odp.id] = marker;
-        
+
         // Draw connection line
         if (odp.source_id && odp.source_type === 'odc') {
             const source = devices.odc.find(d => d.id == odp.source_id);
@@ -314,15 +316,106 @@ function refreshMapMarkers() {
 
 // Draw connection line
 function drawConnectionLine(odp, source) {
-    const line = L.polyline([
-        [parseFloat(odp.lat), parseFloat(odp.lng)],
-        [parseFloat(source.lat), parseFloat(source.lng)]
-    ], {
+    let latlngs = [];
+    
+    if (odp.path_coordinates) {
+        try {
+            latlngs = JSON.parse(odp.path_coordinates);
+        } catch (e) {
+            console.error('Error parsing path_coordinates', e);
+            latlngs = [
+                [parseFloat(odp.lat), parseFloat(odp.lng)],
+                [parseFloat(source.lat), parseFloat(source.lng)]
+            ];
+        }
+    } else {
+        latlngs = [
+            [parseFloat(odp.lat), parseFloat(odp.lng)],
+            [parseFloat(source.lat), parseFloat(source.lng)]
+        ];
+    }
+
+    const line = L.polyline(latlngs, {
         color: '#48bb78',
-        weight: 2,
-        opacity: 0.6,
+        weight: 3,
+        opacity: 0.8,
         dashArray: '5, 5'
     }).addTo(markersLayer);
+    
+    // Hitung jarak kabel
+    let distance = 0;
+    for (let i = 0; i < latlngs.length - 1; i++) {
+        distance += map.distance(latlngs[i], latlngs[i+1]);
+    }
+    
+    line.bindTooltip(`Jarak Kabel: ${Math.round(distance)} Meter`, {sticky: true});
+    
+    // Simpan referensi garis untuk keperluan edit
+    line.odpId = odp.id;
+    odpLines[odp.id] = line;
+}
+
+// Toggle edit path mode
+function togglePathEdit(odpId) {
+    const line = odpLines[odpId];
+    if (!line) return;
+    
+    const btn = document.getElementById(`btnEditPath-${odpId}`);
+    
+    if (line.pm.enabled()) {
+        // MATIKAN mode edit dan SIMPAN
+        line.pm.disable();
+        
+        // Dapatkan koordinat baru
+        const newLatLngs = line.getLatLngs().map(latlng => [latlng.lat, latlng.lng]);
+        const pathJson = JSON.stringify(newLatLngs);
+        
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan...';
+        btn.disabled = true;
+        
+        fetchWithAuth(`${API_BASE}/odp.php?id=${odpId}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                path_coordinates: pathJson
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) throw new Error(data.error);
+            alert('Jalur kabel berhasil disimpan!');
+            loadDevices(); // Refresh data untuk gambar ulang jarak terbaru
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Gagal menyimpan jalur kabel: ' + err.message);
+            btn.innerHTML = '<i class="fas fa-route"></i> Edit Jalur Kabel';
+            btn.disabled = false;
+        });
+        
+    } else {
+        // AKTIFKAN mode edit
+        // Matikan edit mode di layer lain jika ada
+        Object.values(odpLines).forEach(l => {
+            if (l.pm && l.pm.enabled()) {
+                l.pm.disable();
+                const b = document.getElementById(`btnEditPath-${l.odpId}`);
+                if(b) {
+                    b.innerHTML = '<i class="fas fa-route"></i> Edit Jalur Kabel';
+                    b.style.background = '#ed8936';
+                }
+            }
+        });
+        
+        line.pm.enable({
+            allowSelfIntersection: true,
+            preventMarkerRemoval: false
+        });
+        
+        btn.innerHTML = '<i class="fas fa-save"></i> Simpan Jalur';
+        btn.style.background = '#48bb78'; // Ubah warna jadi hijau saat edit
+        
+        map.fitBounds(line.getBounds(), { padding: [50, 50] });
+    }
 }
 
 // =============================================
@@ -334,7 +427,7 @@ function createPopupContent(device) {
     const type = isODC ? 'ODC' : 'ODP';
     const currentUser = window.currentUser;
     const canEdit = currentUser && (currentUser.role === 'admin' || currentUser.role === 'operator');
-    
+
     let content = `
         <div style="min-width: 220px;">
             <h4 style="margin: 0 0 10px 0;">${device.name}</h4>
@@ -342,7 +435,7 @@ function createPopupContent(device) {
             <p><strong>Lokasi:</strong> ${device.location}</p>
             <p><strong>Koordinat:</strong> ${parseFloat(device.lat).toFixed(8)}, ${parseFloat(device.lng).toFixed(8)}</p>
     `;
-    
+
     if (isODC) {
         content += `
             <p><strong>Kapasitas:</strong> ${device.capacity} Port</p>
@@ -353,10 +446,10 @@ function createPopupContent(device) {
         const available = device.available_ports || 0;
         const total = device.total_ports || 0;
         const percentage = total > 0 ? Math.round((available / total) * 100) : 0;
-        
+
         let statusText = '';
         let statusColor = '';
-        
+
         if (available === 0) {
             statusText = '⚠️ PENUH';
             statusColor = '#e53e3e';
@@ -370,7 +463,7 @@ function createPopupContent(device) {
             statusText = '🟢 Normal';
             statusColor = '#48bb78';
         }
-        
+
         content += `
             <p><strong>Sumber:</strong> ${device.source_name || 'Tidak ada'}</p>
             <p><strong>Total Port:</strong> ${total}</p>
@@ -379,7 +472,7 @@ function createPopupContent(device) {
             </p>
         `;
     }
-    
+
     // Tombol edit/hapus hanya untuk admin & operator
     if (canEdit) {
         content += `
@@ -393,9 +486,9 @@ function createPopupContent(device) {
             </button>
         `;
     }
-    
+
     content += `</div>`;
-    
+
     return content;
 }
 
@@ -407,13 +500,13 @@ function showDeviceInfo(device) {
     const panel = document.getElementById('infoPanel');
     const title = document.getElementById('infoTitle');
     const content = document.getElementById('infoContent');
-    
+
     const isODC = devices.odc.some(d => d.id === device.id);
     const currentUser = window.currentUser;
     const canEdit = currentUser && (currentUser.role === 'admin' || currentUser.role === 'operator');
-    
+
     title.textContent = device.name;
-    
+
     let html = `
         <div class="device-detail">
             <p><strong>Tipe:</strong> ${isODC ? 'ODC' : 'ODP'}</p>
@@ -443,10 +536,10 @@ function showDeviceInfo(device) {
         const total = device.total_ports || 0;
         const used = total - available;
         const percentage = total > 0 ? Math.round((used / total) * 100) : 0;
-        
+
         let statusColor = '#48bb78';
         let statusText = 'Normal';
-        
+
         if (available === 0) {
             statusColor = '#e53e3e';
             statusText = '⚠️ PENUH - Tidak ada port tersedia';
@@ -460,9 +553,30 @@ function showDeviceInfo(device) {
             statusColor = '#48bb78';
             statusText = '🟢 Normal - Port masih banyak tersedia';
         }
+
+        let distanceHtml = '';
+        if (device.source_id && odpLines[device.id]) {
+            const line = odpLines[device.id];
+            let distance = 0;
+            const latlngs = line.getLatLngs();
+            for (let i = 0; i < latlngs.length - 1; i++) {
+                distance += map.distance(latlngs[i], latlngs[i+1]);
+            }
+            distanceHtml = `
+                <div style="background: #f7fafc; padding: 10px; border-radius: 5px; margin: 10px 0; border: 1px solid #e2e8f0;">
+                    <p style="margin: 0 0 5px 0;"><strong><i class="fas fa-route"></i> Jarak Kabel:</strong> ${Math.round(distance)} Meter</p>
+                    ${canEdit ? `
+                    <button onclick="togglePathEdit('${device.id}')" id="btnEditPath-${device.id}" style="width: 100%; padding: 8px; background: #ed8936; color: white; border: none; border-radius: 3px; cursor: pointer; transition: 0.3s; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <i class="fas fa-route"></i> Edit Jalur Kabel
+                    </button>
+                    ` : ''}
+                </div>
+            `;
+        }
         
         html += `
             <p><strong>Sumber ODC:</strong> ${device.source_name || 'Tidak terhubung'}</p>
+            ${distanceHtml}
             <p><strong>Total Port:</strong> ${total}</p>
             
             <div style="margin: 10px 0;">
@@ -487,7 +601,7 @@ function showDeviceInfo(device) {
             <hr>
             <h4>📋 Daftar Pelanggan Terhubung</h4>
         `;
-        
+
         if (device.ports && device.ports.length > 0) {
             const usedPorts = device.ports.filter(p => p.status === 'used' && p.target);
             if (usedPorts.length > 0) {
@@ -518,7 +632,7 @@ function showDeviceInfo(device) {
             } else {
                 html += `<p class="empty-message">Belum ada pelanggan terhubung</p>`;
             }
-            
+
             const maintenancePorts = device.ports.filter(p => p.status === 'maintenance');
             if (maintenancePorts.length > 0) {
                 html += `<p><strong>Port Maintenance:</strong> ${maintenancePorts.map(p => p.port_number).join(', ')}</p>`;
@@ -549,11 +663,11 @@ function showDeviceInfo(device) {
             }
 
             html += `</div>`;
-            
+
             content.innerHTML = html;
             panel.classList.add('show');
         }
-        
+
         // Grid port visual
         html += `
             <p style="margin-top:10px;"><strong>Status Port:</strong></p>
@@ -564,7 +678,7 @@ function showDeviceInfo(device) {
                 let bgColor = '#c6f6d5'; // available - hijau muda
                 if (port.status === 'used') bgColor = '#fed7d7'; // used - merah muda
                 else if (port.status === 'maintenance') bgColor = '#fefcbf'; // maintenance - kuning
-                
+
                 html += `
                     <div style="padding: 5px; text-align: center; background: ${bgColor}; border-radius: 3px; font-size: 12px; cursor: pointer;"
                          onclick="configurePort(${port.port_number})"
@@ -576,11 +690,11 @@ function showDeviceInfo(device) {
         }
         html += `</div>`;
     }
-    
+
     if (device.description) {
         html += `<p><strong>Keterangan:</strong> ${device.description}</p>`;
     }
-    
+
     html += `
             <div style="margin-top: 15px;">
                 <button onclick="editDevice('${device.id}', '${isODC ? 'odc' : 'odp'}')" class="btn-icon btn-edit">
@@ -592,7 +706,7 @@ function showDeviceInfo(device) {
             </div>
         </div>
     `;
-    
+
     content.innerHTML = html;
     panel.classList.add('show');
 }
@@ -619,17 +733,17 @@ function highlightODP(odpId) {
         }
         highlightedMarker = null;
     }
-    
+
     const marker = odpMarkers[odpId];
     if (!marker) return;
-    
+
     // Buat icon highlight (lebih besar, dengan glow)
     const odp = devices.odp.find(d => d.id == odpId);
     const available = odp ? odp.available_ports : 0;
     const total = odp ? odp.total_ports : 0;
     const status = odp ? getODPStatus(available, total) : 'normal';
     const borderColor = getStatusColor(status);
-    
+
     const highlightIcon = L.divIcon({
         html: `
             <div style="
@@ -664,15 +778,15 @@ function highlightODP(odpId) {
         iconAnchor: [24, 54],
         popupAnchor: [0, -54]
     });
-    
+
     marker.setIcon(highlightIcon);
     highlightedMarker = marker;
-    
+
     if (odp) {
         map.setView([parseFloat(odp.lat), parseFloat(odp.lng)], 18);
         marker.openPopup();
     }
-    
+
     setTimeout(() => {
         if (highlightedMarker === marker) {
             const currentOdp = devices.odp.find(d => d.id == odpId);
@@ -693,13 +807,13 @@ async function loadDevices() {
             fetch(`${API_BASE}/odc.php`, { credentials: 'include' }),
             fetch(`${API_BASE}/odp.php`, { credentials: 'include' })
         ]);
-        
+
         const odcData = await odcRes.json();
         const odpData = await odpRes.json();
-        
+
         devices.odc = Array.isArray(odcData) ? odcData : [];
         devices.odp = Array.isArray(odpData) ? odpData : [];
-        
+
         refreshMapMarkers();
         refreshDeviceList();
     } catch (error) {
@@ -715,19 +829,19 @@ function refreshDeviceList() {
     const activeFilter = document.querySelector('.filter-btn.active')?.dataset.filter || 'all';
     const currentUser = window.currentUser;
     const canEdit = currentUser && (currentUser.role === 'admin' || currentUser.role === 'operator');
-    
+
     const allDevices = [
-        ...devices.odc.map(d => ({...d, type: 'odc'})), 
-        ...devices.odp.map(d => ({...d, type: 'odp'}))
+        ...devices.odc.map(d => ({ ...d, type: 'odc' })),
+        ...devices.odp.map(d => ({ ...d, type: 'odp' }))
     ];
-    
+
     container.innerHTML = '';
-    
+
     allDevices.forEach(device => {
         if (activeFilter !== 'all' && device.type !== activeFilter) return;
-        if (searchTerm && !device.name.toLowerCase().includes(searchTerm) && 
+        if (searchTerm && !device.name.toLowerCase().includes(searchTerm) &&
             !device.location.toLowerCase().includes(searchTerm)) return;
-        
+
         const div = document.createElement('div');
         div.className = `device-item ${device.type}`;
         div.onclick = () => {
@@ -735,26 +849,26 @@ function refreshDeviceList() {
             zoomToDevice(device.lat, device.lng);
             handleDeviceClickMobile(); // 👈 TAMBAHKAN BARIS INI
         };
-        
+
         let infoHtml = '';
         let statusIndicator = '';
-        
+
         if (device.type === 'odc') {
             infoHtml = `Port: ${device.used_ports || 0}/${device.capacity} | ODP: ${device.connected_odps || 0}`;
         } else {
             const available = device.available_ports || 0;
             const total = device.total_ports || 0;
             const percentage = total > 0 ? Math.round((available / total) * 100) : 0;
-            
+
             let statusEmoji = '🟢';
             if (percentage <= 50 && percentage > 20) statusEmoji = '🟡';
             else if (percentage <= 20 && percentage > 0) statusEmoji = '🔴';
             else if (percentage === 0) statusEmoji = '⚫';
-            
+
             statusIndicator = `<span style="float: right;">${statusEmoji}</span>`;
             infoHtml = `Port: ${available}/${total} tersedia (${percentage}%) | Sumber: ${device.source_name || '-'}`;
         }
-        
+
         let actionsHtml = '';
         if (canEdit) {
             actionsHtml = `
@@ -768,7 +882,7 @@ function refreshDeviceList() {
                 </div>
             `;
         }
-        
+
         div.innerHTML = `
             <div class="device-header">
                 <span class="device-name">${device.name} ${statusIndicator}</span>
@@ -778,7 +892,7 @@ function refreshDeviceList() {
             <div class="device-info">${device.location}</div>
             ${actionsHtml}
         `;
-        
+
         container.appendChild(div);
     });
 }
@@ -789,12 +903,12 @@ function refreshDeviceList() {
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebarOverlay');
-    
+
     if (!sidebar) {
         console.error('Element #sidebar not found');
         return;
     }
-    
+
     if (sidebar.classList.contains('open')) {
         closeSidebar();
     } else {
@@ -806,15 +920,15 @@ function openSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebarOverlay');
     const toggleMap = document.getElementById('sidebarToggleMap');
-    
+
     if (!sidebar) return;
-    
+
     sidebar.classList.add('open');
     sidebar.classList.remove('closed');
-    
+
     if (overlay) overlay.classList.add('active');
     if (toggleMap) toggleMap.style.display = 'none';
-    
+
     // Invalidate map size setelah sidebar terbuka
     setTimeout(() => {
         if (typeof map !== 'undefined' && map) {
@@ -827,19 +941,19 @@ function closeSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebarOverlay');
     const toggleMap = document.getElementById('sidebarToggleMap');
-    
+
     if (!sidebar) return;
-    
+
     sidebar.classList.remove('open');
     sidebar.classList.add('closed');
-    
+
     if (overlay) overlay.classList.remove('active');
-    
+
     // Tampilkan tombol buka sidebar di peta (mobile)
     if (window.innerWidth <= 768) {
         if (toggleMap) toggleMap.style.display = 'block';
     }
-    
+
     // Invalidate map size setelah sidebar tertutup
     setTimeout(() => {
         if (typeof map !== 'undefined' && map) {
@@ -856,13 +970,13 @@ function handleDeviceClickMobile() {
 }
 
 // Handle window resize
-window.addEventListener('resize', function() {
+window.addEventListener('resize', function () {
     const toggleMap = document.getElementById('sidebarToggleMap');
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebarOverlay');
-    
+
     if (!sidebar) return;
-    
+
     if (window.innerWidth > 768) {
         // Desktop: sidebar selalu terbuka
         sidebar.classList.remove('closed', 'open');
@@ -874,7 +988,7 @@ window.addEventListener('resize', function() {
             if (toggleMap) toggleMap.style.display = 'block';
         }
     }
-    
+
     // Invalidate map size
     setTimeout(() => {
         if (typeof map !== 'undefined' && map) {

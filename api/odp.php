@@ -169,8 +169,8 @@ function createODP() {
         
         // Insert ODP
         $stmt = $pdo->prepare("
-            INSERT INTO odp (name, source_id, source_type, lat, lng, location, total_ports, description)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO odp (name, source_id, source_type, lat, lng, location, total_ports, description, path_coordinates)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
         $stmt->execute([
             $data['name'],
@@ -180,7 +180,8 @@ function createODP() {
             $data['lng'],
             $data['location'] ?? '',
             $data['total_ports'] ?? 8,
-            $data['description'] ?? ''
+            $data['description'] ?? '',
+            $data['path_coordinates'] ?? null
         ]);
         
         $odp_id = $pdo->lastInsertId();
@@ -245,6 +246,7 @@ function updateODP($id) {
         if (isset($data['location'])) { $fields[] = "location = ?"; $values[] = $data['location']; }
         if (isset($data['total_ports'])) { $fields[] = "total_ports = ?"; $values[] = $data['total_ports']; }
         if (isset($data['description'])) { $fields[] = "description = ?"; $values[] = $data['description']; }
+        if (isset($data['path_coordinates'])) { $fields[] = "path_coordinates = ?"; $values[] = $data['path_coordinates']; }
         
         if (!empty($fields)) {
             $values[] = $id;
