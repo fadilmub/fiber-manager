@@ -210,6 +210,18 @@ export async function loadODCPorts(odcId) {
   return await readJson(response)
 }
 
+export async function getOdc(id) {
+  const response = await fetchWithAuth(`${API_BASE}/odc.php?id=${id}`, { method: 'GET' })
+  if (!response) return null
+  return await readJson(response)
+}
+
+export async function getOdp(id) {
+  const response = await fetchWithAuth(`${API_BASE}/odp.php?id=${id}`, { method: 'GET' })
+  if (!response) return null
+  return await readJson(response)
+}
+
 export async function createOdc(data) {
   const response = await fetchWithAuth(`${API_BASE}/odc.php`, {
     method: 'POST',

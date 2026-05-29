@@ -428,14 +428,18 @@ img {
   padding: 24px;
   background: rgba(15, 23, 42, 0.55);
   z-index: 4000;
+  overflow-y: auto;
 }
 
 .modal-content {
   width: min(100%, 760px);
+  max-height: calc(100vh - 48px);
   background: white;
   border-radius: 24px;
   box-shadow: 0 30px 60px rgba(15, 23, 42, 0.18);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-lg {
@@ -463,6 +467,8 @@ img {
 
 .modal-body {
   padding: 22px;
+  overflow-y: auto;
+  max-height: calc(100vh - 220px);
 }
 
 .close {
@@ -687,6 +693,13 @@ img {
   color: #975a16;
   border-color: #ecc94b;
 }
+
+/* ODC marker ring states */
+.odc-divicon img { display: block; border-radius: 6px; }
+.odc-marker { display: inline-block; padding: 2px; border-radius: 8px; }
+.odc-marker.odc-ok { box-shadow: 0 0 0 3px rgba(72, 187, 120, 0.18); }
+.odc-marker.odc-medium { box-shadow: 0 0 0 3px rgba(237, 137, 54, 0.18); }
+.odc-marker.odc-high { box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.18); }
 
 .pon-header h4 {
   font-size: 14px;
