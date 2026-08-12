@@ -458,9 +458,67 @@ function initDragAndDropSupport() {
     });
 }
 
+function extractGoogleMapsCoordinates(input) {
+    if (typeof input !== 'string') return null;
+
+    const value = input.trim();
+    if (!value) return null;
+
+    const googlePatterns = [
+        /@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)(?:,|\/|\?|&|$)/i,
+        /[?&](?:q|center|destination|daddr|saddr|origin)=([^&]+)/i,
+        /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/i,
+        /(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/
+    ];
+
+    for (const pattern of googlePatterns) {
+        const match = value.match(pattern);
+        if (!match) continue;
+
+        let lat = null;
+        let lng = null;
+
+        if (pattern.source.includes('!3d')) {
+            lat = parseFloat(match[1]);
+            lng = parseFloat(match[2]);
+        } else if (pattern.source.includes('[?&](?:q|center|destination|daddr|saddr|origin)')) {
+            const raw = decodeURIComponent(match[1]).replace(/\+/g, ' ');
+            const direct = raw.match(/(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/);
+            if (!direct) continue;
+            lat = parseFloat(direct[1]);
+            lng = parseFloat(direct[2]);
+        } else if (pattern.source.includes('@')) {
+            lat = parseFloat(match[1]);
+            lng = parseFloat(match[2]);
+        } else {
+            const normalized = match[0].replace(/[^0-9.,-]/g, '');
+            const parts = normalized.split(',');
+            if (parts.length < 2) continue;
+            lat = parseFloat(parts[0]);
+            lng = parseFloat(parts[1]);
+        }
+
+        if (isNaN(lat) || isNaN(lng)) continue;
+        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) continue;
+        return { lat, lng };
+    }
+
+    return null;
+}
+
 // Parse coordinate string to lat/lng
 function parseCoordinates(coordString) {
-    const cleaned = coordString.replace(/\s+/g, '');
+    if (typeof coordString !== 'string') return null;
+
+    const value = coordString.trim();
+    if (!value) return null;
+
+    const googleCoords = extractGoogleMapsCoordinates(value);
+    if (googleCoords) {
+        return googleCoords;
+    }
+
+    const cleaned = value.replace(/\s+/g, '');
     const parts = cleaned.split(',');
     if (parts.length !== 2) return null;
     const lat = parseFloat(parts[0]);
@@ -474,6 +532,80 @@ function parseCoordinates(coordString) {
 function formatCoordinates(lat, lng) {
     return `${lat}, ${lng}`;
 }
+
+async function resolveGoogleMapsShortLink(rawUrl) {
+    const url = rawUrl.trim();
+    if (!/maps\.app\.goo\.gl|goo\.gl\/maps|maps\.google\.|google\.[^\s]+\/maps/i.test(url)) {
+        return null;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/resolve_google_maps.php?url=${encodeURIComponent(url)}`, {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            return null;
+        }
+
+        const data = await response.json();
+        if (!data || typeof data.lat !== 'number' || typeof data.lng !== 'number') {
+            return null;
+        }
+
+        return { lat: data.lat, lng: data.lng };
+    } catch (error) {
+        console.error('Failed to resolve Google Maps short link:', error);
+        return null;
+    }
+}
+
+async function autoConvertCoordinateField(field) {
+    if (!field || typeof field.value !== 'string') return;
+
+    const raw = field.value.trim();
+    if (!raw) return;
+
+    const directCoords = parseCoordinates(raw);
+    if (directCoords) {
+        const hasGoogleMapsLink = /google\.|maps\.app|maps\.google|goo\.gl|maps\?q|@-?\d+\./i.test(raw);
+        if (hasGoogleMapsLink) {
+            field.value = formatCoordinates(directCoords.lat, directCoords.lng);
+        }
+        return;
+    }
+
+    if (/maps\.app\.goo\.gl|goo\.gl\/maps|google\.[^\s]+\/maps/i.test(raw)) {
+        const resolved = await resolveGoogleMapsShortLink(raw);
+        if (resolved) {
+            field.value = formatCoordinates(resolved.lat, resolved.lng);
+        }
+    }
+}
+
+function attachCoordinateAutoFill() {
+    document.querySelectorAll('input[id$="Coordinates"]').forEach(field => {
+        field.addEventListener('blur', function () {
+            autoConvertCoordinateField(this);
+        });
+
+        field.addEventListener('paste', function () {
+            setTimeout(() => autoConvertCoordinateField(this), 50);
+        });
+
+        field.addEventListener('input', function () {
+            const raw = this.value.trim();
+            if (!raw) return;
+            if (/google\.|maps\.app|maps\.google|goo\.gl|maps\?q|@-?\d+\./i.test(raw)) {
+                setTimeout(() => autoConvertCoordinateField(this), 50);
+            }
+        });
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    attachCoordinateAutoFill();
+});
 
 let coordinatePickerTargetId = null;
 let coordinatePickerMap = null;
@@ -611,18 +743,28 @@ function useCurrentLocation(fieldId) {
     );
 }
 
-// Search and zoom to coordinate
-function searchAndZoom() {
+async function searchAndZoom() {
     const input = document.getElementById('searchCoordinate');
-    const coordString = input.value.trim();
-    if (!coordString) {
-        alert('Masukkan koordinat terlebih dahulu');
+    if (!input) return;
+
+    const rawValue = input.value.trim();
+    if (!rawValue) {
+        alert('Masukkan koordinat atau link Google Maps terlebih dahulu');
         return;
     }
-    const coords = parseCoordinates(coordString);
+
+    let coords = parseCoordinates(rawValue);
+    if (!coords && /maps\.app\.goo\.gl|goo\.gl\/maps|google\.[^\s]+\/maps|maps\.google\./i.test(rawValue)) {
+        coords = await resolveGoogleMapsShortLink(rawValue);
+    }
+
     if (!coords) {
-        alert('Format koordinat tidak valid!\n\nGunakan format: latitude, longitude\nContoh: -6.963707888562949, 109.64706473647041');
+        alert('Format koordinat tidak valid!\n\nGunakan format: latitude, longitude\nContoh: -6.963707888562949, 109.64706473647041\nAtau paste link Google Maps');
         return;
+    }
+
+    if (rawValue !== formatCoordinates(coords.lat, coords.lng)) {
+        input.value = formatCoordinates(coords.lat, coords.lng);
     }
 
     const tempMarker = L.marker([coords.lat, coords.lng], {
