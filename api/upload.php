@@ -25,11 +25,113 @@ switch($method) {
         sendResponse(['error' => 'Method not allowed'], 405);
 }
 
+function replaceExistingPhoto($type, $deviceId, $photoId) {
+    global $pdo;
+
+    $tableMap = [
+        'pop' => ['photo_table' => 'pop_photos', 'id_column' => 'pop_id', 'upload_dir' => 'pop'],
+        'olt' => ['photo_table' => 'olt_photos', 'id_column' => 'olt_id', 'upload_dir' => 'olt'],
+        'odc' => ['photo_table' => 'odc_photos', 'id_column' => 'odc_id', 'upload_dir' => 'odc'],
+        'odp' => ['photo_table' => 'odp_photos', 'id_column' => 'odp_id', 'upload_dir' => 'odp'],
+        'port' => ['photo_table' => 'port_photos', 'id_column' => 'port_id', 'upload_dir' => 'port']
+    ];
+
+    if (!isset($tableMap[$type])) {
+        sendResponse(['error' => 'Tipe device tidak valid'], 400);
+    }
+
+    $map = $tableMap[$type];
+    $photoTable = $map['photo_table'];
+    $idColumn = $map['id_column'];
+    $uploadDir = __DIR__ . '/../uploads/' . $map['upload_dir'] . '/';
+
+    if (!isset($_FILES['photos']) || empty($_FILES['photos']['name'][0])) {
+        sendResponse(['error' => 'File foto harus diupload'], 400);
+    }
+
+    $stmt = $pdo->prepare("SELECT * FROM $photoTable WHERE id = ? AND $idColumn = ?");
+    $stmt->execute([$photoId, $deviceId]);
+    $photo = $stmt->fetch();
+
+    if (!$photo) {
+        sendResponse(['error' => 'Foto yang akan diganti tidak ditemukan'], 404);
+    }
+
+    $files = $_FILES['photos'];
+    $fileIndex = 0;
+    $fileName = $files['name'][$fileIndex];
+    $fileTmp = $files['tmp_name'][$fileIndex];
+    $fileSize = $files['size'][$fileIndex];
+    $fileError = $files['error'][$fileIndex];
+
+    if ($fileError !== UPLOAD_ERR_OK) {
+        sendResponse(['error' => 'Error upload file: ' . $fileName], 400);
+    }
+
+    $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+    $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+    if (!in_array($extension, $allowedExtensions)) {
+        sendResponse(['error' => 'Ekstensi file tidak diizinkan: ' . $fileName], 400);
+    }
+
+    $fileInfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mimeType = finfo_file($fileInfo, $fileTmp);
+    finfo_close($fileInfo);
+
+    $allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!in_array($mimeType, $allowedMimeTypes)) {
+        sendResponse(['error' => 'Tipe file tidak diizinkan: ' . $fileName], 400);
+    }
+
+    if ($fileSize > 5 * 1024 * 1024) {
+        sendResponse(['error' => 'File terlalu besar: ' . $fileName . ' (max 5MB)'], 400);
+    }
+
+    if (!file_exists($uploadDir)) {
+        mkdir($uploadDir, 0777, true);
+    }
+
+    $oldFilePath = $uploadDir . $photo['filename'];
+    if (file_exists($oldFilePath)) {
+        unlink($oldFilePath);
+    }
+
+    $timestamp = time();
+    $random = bin2hex(random_bytes(8));
+    $newFileName = $type . '_' . $deviceId . '_' . $timestamp . '_' . $random . '.' . $extension;
+    $destination = $uploadDir . $newFileName;
+
+    if (!move_uploaded_file($fileTmp, $destination)) {
+        sendResponse(['error' => 'Gagal menyimpan file: ' . $fileName], 500);
+    }
+
+    $stmt = $pdo->prepare("UPDATE $photoTable SET filename = ?, original_name = ?, file_size = ?, created_at = NOW() WHERE id = ?");
+    $stmt->execute([$newFileName, $fileName, $fileSize, $photoId]);
+
+    sendResponse([
+        'success' => true,
+        'message' => 'Foto berhasil diganti',
+        'photo' => [
+            'id' => (int)$photoId,
+            'filename' => $newFileName,
+            'original_name' => $fileName,
+            'file_size' => $fileSize,
+            'url' => 'uploads/' . $map['upload_dir'] . '/' . $newFileName,
+            'created_at' => date('Y-m-d H:i:s')
+        ]
+    ]);
+}
+
 function uploadPhoto() {
     global $pdo;
     
     $type = $_POST['type'] ?? ''; // 'pop', 'olt', 'odc', 'odp', 'port'
     $deviceId = isset($_POST['device_id']) ? (int)$_POST['device_id'] : 0;
+    $replacePhotoId = isset($_POST['replace_photo_id']) ? (int)$_POST['replace_photo_id'] : 0;
+
+    if ($replacePhotoId > 0) {
+        replaceExistingPhoto($type, $deviceId, $replacePhotoId);
+    }
     
     if (!in_array($type, ['pop', 'olt', 'odc', 'odp', 'port'])) {
         sendResponse(['error' => 'Tipe device tidak valid'], 400);

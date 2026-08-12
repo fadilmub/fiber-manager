@@ -1109,6 +1109,92 @@ async function saveODCOriginal() {
 // PHOTO FUNCTIONS
 // =============================================
 
+function triggerPhotoPicker(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    window.lastPhotoInputId = inputId;
+    input.click();
+}
+
+function handleClipboardPhotoPaste(event) {
+    const targetInputId = window.lastPhotoInputId;
+    if (!targetInputId || !event.clipboardData || !event.clipboardData.items) return;
+
+    const files = Array.from(event.clipboardData.items)
+        .filter(item => item.kind === 'file' && item.type.startsWith('image/'))
+        .map(item => item.getAsFile())
+        .filter(Boolean);
+
+    if (!files.length) return;
+
+    const targetInput = document.getElementById(targetInputId);
+    if (!targetInput || targetInput.type !== 'file') return;
+
+    event.preventDefault();
+
+    const dataTransfer = new DataTransfer();
+    files.forEach(file => dataTransfer.items.add(file));
+    targetInput.files = dataTransfer.files;
+    targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+document.addEventListener('paste', handleClipboardPhotoPaste);
+
+async function replacePhoto(photoId, type, deviceId) {
+    const picker = document.createElement('input');
+    picker.type = 'file';
+    picker.accept = 'image/*';
+    picker.style.display = 'none';
+
+    picker.addEventListener('change', async () => {
+        const file = picker.files && picker.files[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            alert('File yang dipilih bukan gambar!');
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            alert('File terlalu besar! Maksimal 5MB per foto.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('type', type);
+        formData.append('device_id', deviceId);
+        formData.append('replace_photo_id', photoId);
+        formData.append('photos[]', file);
+
+        try {
+            const response = await fetch(`${API_BASE}/upload.php`, {
+                method: 'POST',
+                credentials: 'include',
+                body: formData
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+                await loadDevices();
+                const device = type === 'odc' ? devices.odc.find(d => d.id == deviceId) :
+                    type === 'odp' ? devices.odp.find(d => d.id == deviceId) :
+                    type === 'port' ? devices.odp.find(d => d.id == deviceId) :
+                    devices.pop.find(d => d.id == deviceId);
+
+                if (device) showDeviceInfo(device);
+                alert(result.message || 'Foto berhasil diganti');
+            } else {
+                alert(result.error || 'Gagal mengganti foto');
+            }
+        } catch (error) {
+            console.error('Replace photo error:', error);
+            alert('Gagal mengganti foto');
+        }
+    });
+
+    picker.click();
+}
+
 function previewODPPhotos() {
     const files = document.getElementById('odpPhotos')?.files;
     const preview = document.getElementById('odpPhotoPreview');
@@ -1192,6 +1278,9 @@ async function loadPortPhotos(portId) {
                 div.className = 'photo-item';
                 div.innerHTML = `
                     <img src="${photo.url}" alt="Foto Port" onclick="openLightbox('${photo.url}')" style="cursor:pointer">
+                    <button type="button" class="replace-photo" onclick="replacePhoto(${photo.id}, 'port', ${portId})" title="Ganti foto">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
                     <button type="button" class="delete-photo" onclick="deletePhoto(${photo.id}, 'port', ${portId})">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -1294,7 +1383,14 @@ function renderPhotoGallery(device, type) {
     let html = '<hr><h4>📷 Foto (' + device.photos.length + '/5)</h4><div class="photo-gallery">';
     device.photos.forEach(photo => {
         const primaryClass = photo.is_primary ? ' primary-photo' : '';
-        html += `<img src="${photo.url}" alt="${photo.original_name || 'Foto'}" class="${primaryClass}" onclick="openLightbox('${photo.url}')" title="${photo.original_name || 'Foto'}${photo.is_primary ? ' (Utama)' : ''}">`;
+        html += `
+            <div class="photo-gallery-item ${primaryClass}">
+                <img src="${photo.url}" alt="${photo.original_name || 'Foto'}" onclick="openLightbox('${photo.url}')" title="${photo.original_name || 'Foto'}${photo.is_primary ? ' (Utama)' : ''}">
+                <button type="button" class="replace-photo" onclick="replacePhoto(${photo.id}, '${type}', ${device.id})" title="Ganti foto"><i class="fas fa-sync-alt"></i></button>
+                <button type="button" class="delete-photo" onclick="deletePhoto(${photo.id}, '${type}', ${device.id})" title="Hapus foto"><i class="fas fa-times"></i></button>
+                ${photo.is_primary ? '<span class="primary-badge">Utama</span>' : ''}
+            </div>
+        `;
     });
     html += '</div>';
     return html;
@@ -1472,7 +1568,12 @@ async function editDevice(id, type) {
                 device.photos.forEach(photo => {
                     const div = document.createElement('div');
                     div.className = `photo-item${photo.is_primary ? ' primary' : ''}`;
-                    div.innerHTML = `<img src="${photo.url}" alt="${photo.original_name}"><button type="button" class="delete-photo" onclick="deletePhoto(${photo.id}, 'odp', ${device.id})"><i class="fas fa-times"></i></button>${photo.is_primary ? '<span class="primary-badge">Utama</span>' : ''}`;
+                    div.innerHTML = `
+                        <img src="${photo.url}" alt="${photo.original_name}">
+                        <button type="button" class="replace-photo" onclick="replacePhoto(${photo.id}, 'odp', ${device.id})" title="Ganti foto"><i class="fas fa-sync-alt"></i></button>
+                        <button type="button" class="delete-photo" onclick="deletePhoto(${photo.id}, 'odp', ${device.id})"><i class="fas fa-times"></i></button>
+                        ${photo.is_primary ? '<span class="primary-badge">Utama</span>' : ''}
+                    `;
                     photoPreview.appendChild(div);
                 });
             }

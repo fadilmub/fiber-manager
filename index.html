@@ -286,10 +286,10 @@
                     <input type="file" id="odpPhotos" accept="image/*" multiple style="display: none;"
                         onchange="previewODPPhotos()">
                     <button type="button" class="btn btn-secondary btn-sm"
-                        onclick="document.getElementById('odpPhotos').click()">
-                        <i class="fas fa-camera"></i> Pilih Foto
+                        onclick="triggerPhotoPicker('odpPhotos')">
+                        <i class="fas fa-camera"></i> Pilih / Paste Foto
                     </button>
-                    <small style="display: block; margin-top: 5px;">Format: JPG, PNG, GIF, WEBP (Max 5MB/foto)</small>
+                    <small style="display: block; margin-top: 5px;">Format: JPG, PNG, GIF, WEBP (Max 5MB/foto). Tekan Ctrl+V untuk menempelkan foto langsung.</small>
                     <div id="odpPhotoPreview" class="photo-preview"></div>
                 </div>
 
@@ -410,8 +410,8 @@
                     <input type="file" id="popPhotos" accept="image/*" multiple style="display: none;"
                         onchange="previewPOPPhotos()">
                     <button type="button" class="btn btn-secondary btn-sm"
-                        onclick="document.getElementById('popPhotos').click()">
-                        <i class="fas fa-camera"></i> Pilih Foto
+                        onclick="triggerPhotoPicker('popPhotos')">
+                        <i class="fas fa-camera"></i> Pilih / Paste Foto
                     </button>
                     <div id="popPhotoPreview" class="photo-preview"></div>
                 </div>
@@ -499,8 +499,8 @@
                     <input type="file" id="oltPhotos" accept="image/*" multiple style="display: none;"
                         onchange="previewOLTPhotos()">
                     <button type="button" class="btn btn-secondary btn-sm"
-                        onclick="document.getElementById('oltPhotos').click()">
-                        <i class="fas fa-camera"></i> Pilih Foto
+                        onclick="triggerPhotoPicker('oltPhotos')">
+                        <i class="fas fa-camera"></i> Pilih / Paste Foto
                     </button>
                     <div id="oltPhotoPreview" class="photo-preview"></div>
                 </div>
@@ -630,10 +630,10 @@
                     <input type="file" id="odcPhotos" accept="image/*" multiple style="display: none;"
                         onchange="previewODCPhotos()">
                     <button type="button" class="btn btn-secondary btn-sm"
-                        onclick="document.getElementById('odcPhotos').click()">
-                        <i class="fas fa-camera"></i> Pilih Foto
+                        onclick="triggerPhotoPicker('odcPhotos')">
+                        <i class="fas fa-camera"></i> Pilih / Paste Foto
                     </button>
-                    <small style="display: block; margin-top: 5px;">Format: JPG, PNG, GIF, WEBP (Max 5MB/foto)</small>
+                    <small style="display: block; margin-top: 5px;">Format: JPG, PNG, GIF, WEBP (Max 5MB/foto). Tekan Ctrl+V untuk menempelkan foto langsung.</small>
                     <div id="odcPhotoPreview" class="photo-preview"></div>
                 </div>
 
@@ -701,10 +701,10 @@
                     <input type="file" id="portPhotos" accept="image/*" multiple style="display: none;"
                         onchange="previewPortPhotos()">
                     <button type="button" class="btn btn-secondary btn-sm"
-                        onclick="document.getElementById('portPhotos').click()">
-                        <i class="fas fa-camera"></i> Pilih Foto
+                        onclick="triggerPhotoPicker('portPhotos')">
+                        <i class="fas fa-camera"></i> Pilih / Paste Foto
                     </button>
-                    <small style="display: block; margin-top: 5px;">Format: JPG, PNG, GIF, WEBP (Max 5MB/foto)</small>
+                    <small style="display: block; margin-top: 5px;">Format: JPG, PNG, GIF, WEBP (Max 5MB/foto). Tekan Ctrl+V untuk menempelkan foto langsung.</small>
                     <div id="portPhotoPreview" class="photo-preview"></div>
                 </div>
 

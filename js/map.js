@@ -19,6 +19,26 @@ let isLinesEnabled = true;
 let baseTileLayer = null;
 let selectedDeviceLines = [];
 
+function getDeviceType(device) {
+    if (!device) return 'device';
+
+    if (typeof device.type === 'string' && ['odc', 'odp', 'pop', 'pole'].includes(device.type)) {
+        return device.type;
+    }
+
+    if (devices.odc.some(d => d === device)) return 'odc';
+    if (devices.odp.some(d => d === device)) return 'odp';
+    if (devices.pop.some(d => d === device)) return 'pop';
+    if (devices.pole.some(d => d === device)) return 'pole';
+
+    if (devices.odc.some(d => d.id == device.id)) return 'odc';
+    if (devices.odp.some(d => d.id == device.id)) return 'odp';
+    if (devices.pop.some(d => d.id == device.id)) return 'pop';
+    if (devices.pole.some(d => d.id == device.id)) return 'pole';
+
+    return 'device';
+}
+
 function highlightLine(line) {
     if (!line) return;
     const style = line.originalStyle || { color: '#3182ce', weight: 2, opacity: 0.7 };
@@ -62,9 +82,10 @@ function highlightLinesForDevice(device) {
     clearSelectedDeviceLines();
     if (!device) return;
 
-    const isODC = devices.odc.some(d => d.id == device.id);
-    const isPOP = devices.pop.some(p => p.id == device.id);
-    const isODP = devices.odp.some(d => d.id == device.id);
+    const deviceType = getDeviceType(device);
+    const isODC = deviceType === 'odc';
+    const isPOP = deviceType === 'pop';
+    const isODP = deviceType === 'odp';
 
     if (isPOP) {
         Object.values(odcLines).forEach(line => {
@@ -1295,9 +1316,10 @@ function togglePortPathEdit(portKey) {
 }
 
 function createPopupContent(device) {
-    const isODC = devices.odc.some(d => d.id === device.id);
-    const isODP = devices.odp.some(d => d.id === device.id);
-    const isPole = devices.pole.some(d => d.id === device.id);
+    const deviceType = getDeviceType(device);
+    const isODC = deviceType === 'odc';
+    const isODP = deviceType === 'odp';
+    const isPole = deviceType === 'pole';
     const type = isODC ? 'ODC' : isODP ? 'ODP' : isPole ? 'POLE' : 'DEVICE';
     const currentUser = window.currentUser;
     const canEdit = currentUser && (currentUser.role === 'admin' || currentUser.role === 'operator');
@@ -1347,9 +1369,10 @@ async function showDeviceInfo(device) {
     const title = document.getElementById('infoTitle');
     const content = document.getElementById('infoContent');
 
-    const isODC = devices.odc.some(d => d.id === device.id);
-    const isODP = devices.odp.some(d => d.id === device.id);
-    const isPole = devices.pole.some(d => d.id === device.id);
+    const deviceType = getDeviceType(device);
+    const isODC = deviceType === 'odc';
+    const isODP = deviceType === 'odp';
+    const isPole = deviceType === 'pole';
     const currentUser = window.currentUser;
     const canEdit = currentUser && (currentUser.role === 'admin' || currentUser.role === 'operator');
 
