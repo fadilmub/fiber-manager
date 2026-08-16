@@ -18,6 +18,7 @@ let isClusteringEnabled = true;
 let isLinesEnabled = true;
 let baseTileLayer = null;
 let selectedDeviceLines = [];
+let mapLayerFilters = { odc: true, odp: true, customer: true };
 
 function getDeviceType(device) {
     if (!device) return 'device';
@@ -339,6 +340,32 @@ function toggleMapLines() {
     refreshMapMarkers();
 }
 
+function toggleMapLayer(layerName) {
+    if (layerName === 'all') {
+        mapLayerFilters = { odc: true, odp: true, customer: true };
+    } else if (layerName === 'odp' || layerName === 'odc' || layerName === 'customer') {
+        mapLayerFilters[layerName] = !mapLayerFilters[layerName];
+    }
+
+    document.querySelectorAll('.map-layer-button').forEach(button => {
+        const layer = button.dataset.layer;
+        const isOn = layer === 'all' ? (mapLayerFilters.odc && mapLayerFilters.odp && mapLayerFilters.customer) : mapLayerFilters[layer];
+        button.classList.toggle('active', isOn);
+        button.style.opacity = isOn ? '1' : '0.5';
+    });
+
+    refreshMapMarkers();
+}
+
+function syncMapLayerButtons() {
+    document.querySelectorAll('.map-layer-button').forEach(button => {
+        const layer = button.dataset.layer;
+        const isOn = layer === 'all' ? (mapLayerFilters.odc && mapLayerFilters.odp && mapLayerFilters.customer) : mapLayerFilters[layer];
+        button.classList.toggle('active', isOn);
+        button.style.opacity = isOn ? '1' : '0.5';
+    });
+}
+
 // =============================================
 // FUNGSI-FUNGSI MAP
 // =============================================
@@ -417,8 +444,17 @@ function initMap() {
                 mapContainer.classList.add('hide-marker-tooltip-labels');
             }
         }
+
+        if (window.zoomAwareMarkers && Array.isArray(window.zoomAwareMarkers)) {
+            window.zoomAwareMarkers.forEach(({ marker, createIcon }) => {
+                if (marker && typeof marker.setIcon === 'function' && typeof createIcon === 'function') {
+                    marker.setIcon(createIcon(map.getZoom()));
+                }
+            });
+        }
     };
 
+    window.zoomAwareMarkers = [];
     map.on('zoomend', updateTooltipVisibility);
     setTimeout(updateTooltipVisibility, 500);
 }
@@ -885,7 +921,22 @@ function getStatusColor(status) {
 // FUNGSI ICON
 // =============================================
 
-function createPOPIcon() {
+function createDotIcon(color, size = 12, borderColor = 'white', shadow = true) {
+    const shadowStyle = shadow ? '0 0 0 1px rgba(0,0,0,0.2), 0 3px 8px rgba(0,0,0,0.25)' : 'none';
+    return L.divIcon({
+        html: `<div style="width: ${size}px; height: ${size}px; border-radius: 50%; background: ${color}; border: 2px solid ${borderColor}; box-shadow: ${shadowStyle};"></div>`,
+        className: 'zoom-dot-marker',
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2],
+        popupAnchor: [0, -(size / 2)]
+    });
+}
+
+function createPOPIcon(zoomLevel = (map ? map.getZoom() : 15)) {
+    if (zoomLevel < 13) {
+        return createDotIcon('#9b59b6', 10);
+    }
+
     return L.divIcon({
         html: `
             <div style="position: relative; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: white; border-radius: 50%; border: 3px solid #9b59b6; box-shadow: 0 3px 8px rgba(155, 89, 182, 0.4); transition: transform 0.2s ease;">
@@ -937,7 +988,13 @@ function drawFeederLine(odc, sourceLatLng) {
     odcLines[odc.id] = line;
 }
 
-function createODCIcon() {
+function createODCIcon(zoomLevel = (map ? map.getZoom() : 15)) {
+    const isZoomedOut = zoomLevel < 14;
+
+    if (isZoomedOut) {
+        return createDotIcon('#e53e3e', 12);
+    }
+
     return L.divIcon({
         html: `<div style="width: 40px; height: 40px; background-image: url('assets/icons/odc-icon.png'); background-size: contain; background-repeat: no-repeat; background-position: center; filter: drop-shadow(2px 2px 3px rgba(0,0,0,0.3));"></div>`,
         className: 'custom-marker-icon',
@@ -947,12 +1004,16 @@ function createODCIcon() {
     });
 }
 
-function createODPIcon(availablePorts = null, totalPorts = null) {
+function createODPIcon(availablePorts = null, totalPorts = null, zoomLevel = (map ? map.getZoom() : 15)) {
     let status = 'normal';
     if (availablePorts !== null && totalPorts !== null) {
         status = getODPStatus(availablePorts, totalPorts);
     }
     const borderColor = getStatusColor(status);
+
+    if (zoomLevel < 13) {
+        return createDotIcon(borderColor, 10);
+    }
 
     return L.divIcon({
         html: `
@@ -968,7 +1029,11 @@ function createODPIcon(availablePorts = null, totalPorts = null) {
     });
 }
 
-function createPoleIcon() {
+function createPoleIcon(zoomLevel = (map ? map.getZoom() : 15)) {
+    if (zoomLevel < 13) {
+        return createDotIcon('#8B7355', 10);
+    }
+
     return L.divIcon({
         html: `
             <div style="position: relative; width: 32px; height: 40px; display: flex; align-items: center; justify-content: center;">
@@ -994,6 +1059,7 @@ function createPoleIcon() {
 // =============================================
 
 function refreshMapMarkers() {
+    window.zoomAwareMarkers = [];
     markersLayer.clearLayers();
     if (window.markerClusterGroup) {
         window.markerClusterGroup.clearLayers();
@@ -1002,15 +1068,19 @@ function refreshMapMarkers() {
     odpLines = {};
     odcLines = {};
 
+    syncMapLayerButtons();
+
     // 1. Render POP Markers
     if (devices.pop) {
         devices.pop.forEach(pop => {
             const lat = parseFloat(pop.lat);
             const lng = parseFloat(pop.lng);
             if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-                return; // Lewati koordinat tidak valid
+                return;
             }
-            const marker = L.marker([lat, lng], { icon: createPOPIcon() }).addTo(markersLayer);
+
+            const marker = L.marker([lat, lng], { icon: createPOPIcon(map ? map.getZoom() : 15) });
+            window.zoomAwareMarkers.push({ marker, createIcon: createPOPIcon });
             marker.on('click', () => {
                 highlightLinesForDevice(pop);
             });
@@ -1030,66 +1100,69 @@ function refreshMapMarkers() {
                     <p style="margin: 4px 0;"><strong>Total OLT:</strong> ${pop.olt_count || 0}</p>
                 </div>
             `);
+            marker.addTo(markersLayer);
         });
     }
 
     // 2. Render ODC Markers & Feeder Lines
-    devices.odc.forEach(odc => {
-        const marker = L.marker([parseFloat(odc.lat), parseFloat(odc.lng)], { icon: createODCIcon() }).addTo(markersLayer);
-        marker.bindTooltip(odc.name, {
-            permanent: true,
-            direction: 'top',
-            className: 'marker-tooltip-label',
-            offset: [0, -40]
-        });
-        marker.bindPopup(createPopupContent(odc));
-        marker.on('click', (e) => {
-            if (window.mapSelectionCallback && typeof window.mapSelectionCallback === 'function') {
-                try {
-                    window.mapSelectionCallback(odc);
-                } catch (err) {
-                    console.error('mapSelectionCallback error:', err);
+    if (mapLayerFilters.odc) {
+        devices.odc.forEach(odc => {
+            const marker = L.marker([parseFloat(odc.lat), parseFloat(odc.lng)], { icon: createODCIcon(map ? map.getZoom() : 15) });
+            window.zoomAwareMarkers.push({ marker, createIcon: createODCIcon });
+            marker.bindTooltip(odc.name, {
+                permanent: true,
+                direction: 'top',
+                className: 'marker-tooltip-label',
+                offset: [0, -40]
+            });
+            marker.bindPopup(createPopupContent(odc));
+            marker.on('click', (e) => {
+                if (window.mapSelectionCallback && typeof window.mapSelectionCallback === 'function') {
+                    try {
+                        window.mapSelectionCallback(odc);
+                    } catch (err) {
+                        console.error('mapSelectionCallback error:', err);
+                    }
+                } else {
+                    showDeviceInfo(odc);
                 }
-            } else {
-                showDeviceInfo(odc);
+            });
+            marker.addTo(markersLayer);
+
+            let sourceLatLng = null;
+
+            if (odc.olt_id && devices.olt) {
+                const olt = devices.olt.find(o => o.id == odc.olt_id);
+                if (olt && olt.lat && olt.lng) {
+                    const oltLat = parseFloat(olt.lat);
+                    const oltLng = parseFloat(olt.lng);
+                    if (!isNaN(oltLat) && !isNaN(oltLng) && oltLat >= -90 && oltLat <= 90 && oltLng >= -180 && oltLng <= 180) {
+                        sourceLatLng = [oltLat, oltLng];
+                    }
+                }
+            }
+
+            if (!sourceLatLng && odc.source_id && devices.pop) {
+                const pop = devices.pop.find(p => p.id == odc.source_id);
+                if (pop) {
+                    const popLat = parseFloat(pop.lat);
+                    const popLng = parseFloat(pop.lng);
+                    if (!isNaN(popLat) && !isNaN(popLng) && popLat >= -90 && popLat <= 90 && popLng >= -180 && popLng <= 180) {
+                        sourceLatLng = [popLat, popLng];
+                    }
+                }
+            }
+
+            if (sourceLatLng && isLinesEnabled) {
+                drawFeederLine(odc, sourceLatLng);
             }
         });
-
-        // Gambar Kabel Feeder dari OLT/POP ke ODC ini
-        let sourceLatLng = null;
-
-        // Cari koordinat OLT terlebih dahulu (jika ada dan valid)
-        if (odc.olt_id && devices.olt) {
-            const olt = devices.olt.find(o => o.id == odc.olt_id);
-            if (olt && olt.lat && olt.lng) {
-                const oltLat = parseFloat(olt.lat);
-                const oltLng = parseFloat(olt.lng);
-                if (!isNaN(oltLat) && !isNaN(oltLng) && oltLat >= -90 && oltLat <= 90 && oltLng >= -180 && oltLng <= 180) {
-                    sourceLatLng = [oltLat, oltLng];
-                }
-            }
-        }
-
-        // Jika OLT tidak berkoordinat, cari koordinat POP induknya
-        if (!sourceLatLng && odc.source_id && devices.pop) {
-            const pop = devices.pop.find(p => p.id == odc.source_id);
-            if (pop) {
-                const popLat = parseFloat(pop.lat);
-                const popLng = parseFloat(pop.lng);
-                if (!isNaN(popLat) && !isNaN(popLng) && popLat >= -90 && popLat <= 90 && popLng >= -180 && popLng <= 180) {
-                    sourceLatLng = [popLat, popLng];
-                }
-            }
-        }
-
-        if (sourceLatLng && isLinesEnabled) {
-            drawFeederLine(odc, sourceLatLng);
-        }
-    });
+    }
 
     // 3. Render Pole Markers
     devices.pole.forEach(pole => {
-        const marker = L.marker([parseFloat(pole.lat), parseFloat(pole.lng)], { icon: createPoleIcon() });
+        const marker = L.marker([parseFloat(pole.lat), parseFloat(pole.lng)], { icon: createPoleIcon(map ? map.getZoom() : 15) });
+        window.zoomAwareMarkers.push({ marker, createIcon: createPoleIcon });
         marker.bindTooltip(pole.name, {
             permanent: true,
             direction: 'top',
@@ -1106,132 +1179,133 @@ function refreshMapMarkers() {
     });
 
     // 4. Render ODP Markers & Distribution Lines
-    devices.odp.forEach(odp => {
-        const icon = createODPIcon(odp.available_ports, odp.total_ports);
-        const marker = L.marker([parseFloat(odp.lat), parseFloat(odp.lng)], { icon: icon });
-        marker.bindTooltip(odp.name, {
-            permanent: true,
-            direction: 'top',
-            className: 'marker-tooltip-label',
-            offset: [0, -40]
-        });
-        if (window.markerClusterGroup && isClusteringEnabled) {
-            marker.addTo(window.markerClusterGroup);
-        } else {
-            marker.addTo(markersLayer);
-        }
-        marker.bindPopup(createPopupContent(odp));
-        marker.on('click', () => showDeviceInfo(odp));
-        odpMarkers[odp.id] = marker;
-
-        if (odp.source_id && odp.source_type === 'odc') {
-            const source = devices.odc.find(d => d.id == odp.source_id);
-            if (source && isLinesEnabled) {
-                drawConnectionLine(odp, source);
+    if (mapLayerFilters.odp) {
+        devices.odp.forEach(odp => {
+            const icon = createODPIcon(odp.available_ports, odp.total_ports, map ? map.getZoom() : 15);
+            const marker = L.marker([parseFloat(odp.lat), parseFloat(odp.lng)], { icon: icon });
+            window.zoomAwareMarkers.push({ marker, createIcon: (zoomLevel) => createODPIcon(odp.available_ports, odp.total_ports, zoomLevel) });
+            marker.bindTooltip(odp.name, {
+                permanent: true,
+                direction: 'top',
+                className: 'marker-tooltip-label',
+                offset: [0, -40]
+            });
+            if (window.markerClusterGroup && isClusteringEnabled) {
+                marker.addTo(window.markerClusterGroup);
+            } else {
+                marker.addTo(markersLayer);
             }
-        }
+            marker.bindPopup(createPopupContent(odp));
+            marker.on('click', () => showDeviceInfo(odp));
+            odpMarkers[odp.id] = marker;
 
-        // Render Customer (Port) Markers & Drop Wire Lines
-        if (odp.ports && odp.ports.length > 0) {
-            odp.ports.forEach(port => {
-                if (port.status === 'used' && port.lat && port.lng) {
-                    const cLat = parseFloat(port.lat);
-                    const cLng = parseFloat(port.lng);
-                    if (!isNaN(cLat) && !isNaN(cLng) && cLat >= -90 && cLat <= 90 && cLng >= -180 && cLng <= 180) {
-                        // Create customer marker
-                        const customerIcon = L.divIcon({
-                            html: '<div style="position: relative; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; background: white; border-radius: 50%; border: 2px solid #3182ce; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><i class="fas fa-home" style="color: #3182ce; font-size: 12px;"></i></div>',
-                            className: 'customer-marker-icon',
-                            iconSize: [24, 24],
-                            iconAnchor: [12, 12],
-                            popupAnchor: [0, -12]
-                        });
+            if (odp.source_id && odp.source_type === 'odc') {
+                const source = devices.odc.find(d => d.id == odp.source_id);
+                if (source && isLinesEnabled) {
+                    drawConnectionLine(odp, source);
+                }
+            }
 
-                        const customerMarker = L.marker([cLat, cLng], { icon: customerIcon });
-                        customerMarker.bindTooltip(port.target || 'Pelanggan', {
-                            permanent: true,
-                            direction: 'top',
-                            className: 'marker-tooltip-label',
-                            offset: [0, -15]
-                        });
-                        if (window.markerClusterGroup && isClusteringEnabled) {
-                            customerMarker.addTo(window.markerClusterGroup);
-                        } else {
-                            customerMarker.addTo(markersLayer);
-                        }
+            // Render Customer (Port) Markers & Drop Wire Lines
+            if (mapLayerFilters.customer && odp.ports && odp.ports.length > 0) {
+                odp.ports.forEach(port => {
+                    if (port.status === 'used' && port.lat && port.lng) {
+                        const cLat = parseFloat(port.lat);
+                        const cLng = parseFloat(port.lng);
+                        if (!isNaN(cLat) && !isNaN(cLng) && cLat >= -90 && cLat <= 90 && cLng >= -180 && cLng <= 180) {
+                            const customerIcon = L.divIcon({
+                                html: '<div style="position: relative; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; background: white; border-radius: 50%; border: 2px solid #3182ce; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><i class="fas fa-home" style="color: #3182ce; font-size: 12px;"></i></div>',
+                                className: 'customer-marker-icon',
+                                iconSize: [24, 24],
+                                iconAnchor: [12, 12],
+                                popupAnchor: [0, -12]
+                            });
 
-                        // Prepare path coordinates - check if custom path exists
-                        let latlngs = [];
-                        if (port.path_coordinates) {
-                            try {
-                                latlngs = JSON.parse(port.path_coordinates);
-                            } catch (e) {
+                            const customerMarker = L.marker([cLat, cLng], { icon: customerIcon });
+                            window.zoomAwareMarkers.push({
+                                marker: customerMarker,
+                                createIcon: (zoomLevel) => zoomLevel < 13 ? createDotIcon('#3182ce', 10) : customerIcon
+                            });
+
+                            customerMarker.bindTooltip(port.target || 'Pelanggan', {
+                                permanent: true,
+                                direction: 'top',
+                                className: 'marker-tooltip-label',
+                                offset: [0, -15]
+                            });
+
+                            if (window.markerClusterGroup && isClusteringEnabled) {
+                                customerMarker.addTo(window.markerClusterGroup);
+                            } else {
+                                customerMarker.addTo(markersLayer);
+                            }
+
+                            let latlngs = [];
+                            if (port.path_coordinates) {
+                                try {
+                                    latlngs = JSON.parse(port.path_coordinates);
+                                } catch (e) {
+                                    latlngs = [[parseFloat(odp.lat), parseFloat(odp.lng)], [cLat, cLng]];
+                                }
+                            } else {
                                 latlngs = [[parseFloat(odp.lat), parseFloat(odp.lng)], [cLat, cLng]];
                             }
-                        } else {
-                            latlngs = [[parseFloat(odp.lat), parseFloat(odp.lng)], [cLat, cLng]];
-                        }
 
-                        // Calculate total distance
-                        let distance = 0;
-                        for (let i = 0; i < latlngs.length - 1; i++) {
-                            distance += map.distance(latlngs[i], latlngs[i + 1]);
-                        }
+                            let distance = 0;
+                            for (let i = 0; i < latlngs.length - 1; i++) {
+                                distance += map.distance(latlngs[i], latlngs[i + 1]);
+                            }
 
-                        // Store customer data for side panel display
-                        const customerData = {
-                            odp: odp,
-                            port: port,
-                            distance: distance,
-                            customerLat: cLat,
-                            customerLng: cLng
-                        };
-                        customerMarker.on('click', () => showCustomerInfo(customerData));
+                            const customerData = {
+                                odp: odp,
+                                port: port,
+                                distance: distance,
+                                customerLat: cLat,
+                                customerLng: cLng
+                            };
+                            customerMarker.on('click', () => showCustomerInfo(customerData));
 
-                        // Add button to popup only if user is admin or operator
-                        const currentUser = window.currentUser;
-                        const canEdit = currentUser && (currentUser.role === 'admin' || currentUser.role === 'operator');
-                        const portKey = `${odp.id}_${port.port_number}`;
-                        const editButtonHtml = canEdit ? `<button onclick="togglePortPathEdit('${portKey}')" id="btnEditPortPath-${portKey}" style="width: 100%; margin-top: 10px; padding: 8px; background: #3182ce; color: white; border: none; border-radius: 3px; cursor: pointer; transition: 0.3s; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 8px;"><i class="fas fa-route"></i> Edit Jalur Kabel</button>` : '';
+                            const currentUser = window.currentUser;
+                            const canEdit = currentUser && (currentUser.role === 'admin' || currentUser.role === 'operator');
+                            const portKey = `${odp.id}_${port.port_number}`;
+                            const editButtonHtml = canEdit ? `<button onclick="togglePortPathEdit('${portKey}')" id="btnEditPortPath-${portKey}" style="width: 100%; margin-top: 10px; padding: 8px; background: #3182ce; color: white; border: none; border-radius: 3px; cursor: pointer; transition: 0.3s; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 8px;"><i class="fas fa-route"></i> Edit Jalur Kabel</button>` : '';
 
-                        customerMarker.bindPopup(`
-                            <div style="min-width: 200px;">
-                                <h4 style="margin: 0 0 10px 0; color: #3182ce;"><i class="fas fa-user"></i> ${port.target || 'Pelanggan'}</h4>
-                                <p style="margin: 4px 0;"><strong>ODP:</strong> ${odp.name}</p>
-                                <p style="margin: 4px 0;"><strong>Port:</strong> ${port.port_number}</p>
-                                ${port.onu_number ? `<p style="margin: 4px 0;"><strong>ONU/SN:</strong> ${port.onu_number}</p>` : ''}
-                                ${port.modem_type ? `<p style="margin: 4px 0;"><strong>Modem:</strong> ${port.modem_type}</p>` : ''}
-                                <p style="margin: 4px 0; font-size: 11px; color: #718096;">Koord: ${cLat.toFixed(6)}, ${cLng.toFixed(6)}</p>
-                                ${editButtonHtml}
-                            </div>
-                        `);
+                            customerMarker.bindPopup(`
+                                <div style="min-width: 200px;">
+                                    <h4 style="margin: 0 0 10px 0; color: #3182ce;"><i class="fas fa-user"></i> ${port.target || 'Pelanggan'}</h4>
+                                    <p style="margin: 4px 0;"><strong>ODP:</strong> ${odp.name}</p>
+                                    <p style="margin: 4px 0;"><strong>Port:</strong> ${port.port_number}</p>
+                                    ${port.onu_number ? `<p style="margin: 4px 0;"><strong>ONU/SN:</strong> ${port.onu_number}</p>` : ''}
+                                    ${port.modem_type ? `<p style="margin: 4px 0;"><strong>Modem:</strong> ${port.modem_type}</p>` : ''}
+                                    <p style="margin: 4px 0; font-size: 11px; color: #718096;">Koord: ${cLat.toFixed(6)}, ${cLng.toFixed(6)}</p>
+                                    ${editButtonHtml}
+                                </div>
+                            `);
 
-                        if (isLinesEnabled) {
-                            // Draw line to customer (Kabel Drop / Drop Wire)
-                            const line = L.polyline(latlngs, {
-                                color: '#3182ce',
-                                weight: 2,
-                                opacity: 0.7,
-                                dashArray: '4, 4'
-                            }).addTo(markersLayer);
+                            if (isLinesEnabled) {
+                                const line = L.polyline(latlngs, {
+                                    color: '#3182ce',
+                                    weight: 2,
+                                    opacity: 0.7,
+                                    dashArray: '4, 4'
+                                }).addTo(markersLayer);
 
-                            line.bindTooltip(`Kabel Drop: ${port.target || 'Pelanggan'} (Port ${port.port_number}) - ${Math.round(distance)}m`, { sticky: true });
+                                line.bindTooltip(`Kabel Drop: ${port.target || 'Pelanggan'} (Port ${port.port_number}) - ${Math.round(distance)}m`, { sticky: true });
+                                line.originalStyle = { color: '#3182ce', weight: 2, opacity: 0.7, dashArray: '4, 4' };
+                                line.lineType = 'drop';
+                                line.portKey = portKey;
+                                line.odpId = odp.id;
+                                line.portNumber = port.port_number;
+                                portLines[portKey] = line;
 
-                            // Store line reference for editing
-                            line.originalStyle = { color: '#3182ce', weight: 2, opacity: 0.7, dashArray: '4, 4' };
-                            line.lineType = 'drop';
-                            line.portKey = portKey;
-                            line.odpId = odp.id;
-                            line.portNumber = port.port_number;
-                            portLines[portKey] = line;
-
-                            addLineHoverHandlers(line);
+                                addLineHoverHandlers(line);
+                            }
                         }
                     }
-                }
-            });
-        }
-    });
+                });
+            }
+        });
+    }
 }
 
 function drawConnectionLine(odp, source) {

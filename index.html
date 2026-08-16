@@ -126,6 +126,16 @@
                         style="cursor: pointer; margin: 0;">
                     <i class="fas fa-project-diagram" style="width: 16px; text-align: center;"></i>
                 </label>
+
+                <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px; border-top: 1px solid #e2e8f0; padding-top: 8px;">
+                    <div style="font-size: 11px; color: #4a5568; text-transform: uppercase; letter-spacing: 0.04em;">Layer</div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                        <button type="button" class="map-layer-button active" data-layer="all" onclick="toggleMapLayer('all')">Semua</button>
+                        <button type="button" class="map-layer-button active" data-layer="odp" onclick="toggleMapLayer('odp')">ODP</button>
+                        <button type="button" class="map-layer-button active" data-layer="odc" onclick="toggleMapLayer('odc')">MS</button>
+                        <button type="button" class="map-layer-button active" data-layer="customer" onclick="toggleMapLayer('customer')">Pelanggan</button>
+                    </div>
+                </div>
             </div>
 
 
