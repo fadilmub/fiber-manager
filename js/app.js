@@ -644,6 +644,7 @@ async function saveODP() {
     const id = document.getElementById('odpId')?.value;
     const sourceSelect = document.getElementById('odpSource');
     const selectedOption = sourceSelect?.selectedOptions[0];
+    const rawSourceId = sourceSelect?.value;
     const portInODC = document.getElementById('odpPortInODC')?.value;
     const coordString = document.getElementById('odpCoordinates')?.value.trim();
 
@@ -653,11 +654,15 @@ async function saveODP() {
         return;
     }
 
+    const sourceId = rawSourceId && rawSourceId !== '' ? Number(rawSourceId) : null;
+    const sourceType = sourceId && selectedOption ? selectedOption.dataset.type : null;
+    const normalizedPortInODC = portInODC && portInODC !== '' ? Number(portInODC) : null;
+
     const data = {
         name: document.getElementById('odpName')?.value,
-        source_id: sourceSelect?.value || null,
-        source_type: selectedOption ? selectedOption.dataset.type : null,
-        port_number_in_odc: portInODC || null,
+        source_id: sourceId,
+        source_type: sourceType,
+        port_number_in_odc: normalizedPortInODC,
         lat: coords.lat,
         lng: coords.lng,
         location: document.getElementById('odpLocation')?.value,

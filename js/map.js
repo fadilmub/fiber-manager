@@ -1586,11 +1586,12 @@ async function showDeviceInfo(device) {
         const used = total - available;
         const percentage = total > 0 ? Math.round((used / total) * 100) : 0;
         let statusColor = '#48bb78', statusText = 'Normal';
+        let distanceHtml = '';
+
         if (available === 0) { statusColor = '#e53e3e'; statusText = '⚠️ PENUH - Tidak ada port tersedia'; }
         else if (percentage > 80) { statusColor = '#f56565'; statusText = '🔴 Kritis - Segera perlu ODP tambahan'; }
         else if (percentage > 50) { statusColor = '#ecc94b'; statusText = '🟡 Hampir Penuh - Monitor penggunaan'; }
         else { statusColor = '#48bb78'; statusText = '🟢 Normal - Port masih banyak tersedia'; }
-
 
         if (device.source_id && odpLines[device.id]) {
             const line = odpLines[device.id];
