@@ -334,6 +334,7 @@ function createODC() {
         $stmt->execute([$odc_id, $data['pon_id'], $data['pon_port_number']]);
         
         $pdo->commit();
+        logActivity('create', 'odc', $odc_id, 'Menambahkan ODC', null, $data);
         sendResponse(['id' => $odc_id, 'message' => 'ODC created successfully']);
     } catch(PDOException $e) {
         $pdo->rollBack();
@@ -427,6 +428,7 @@ function updateODC($id) {
         }
         
         $pdo->commit();
+        logActivity('update', 'odc', $id, 'Mengubah ODC', $oldData, $data);
         sendResponse(['message' => 'ODC updated successfully']);
     } catch(PDOException $e) {
         $pdo->rollBack();
@@ -470,6 +472,7 @@ function deleteODC($id) {
         $stmt->execute([$id]);
         
         $pdo->commit();
+        logActivity('delete', 'odc', $id, 'Menghapus ODC', $odc, null);
         sendResponse(['message' => 'ODC deleted successfully']);
     } catch(PDOException $e) {
         $pdo->rollBack();

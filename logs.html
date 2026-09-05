@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Aktivitas - Fiber Manager</title>
+    <link rel="icon" type="image/x-icon" href="assets/icons/icon.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .logs-page { max-width: 1250px; margin: 24px auto; padding: 0 20px; }
+        .logs-header { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:18px; }
+        .logs-header h1 { color:#2d3748; font-size:24px; }
+        .logs-toolbar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+        .logs-toolbar select, .logs-toolbar button { padding:9px 12px; border:1px solid #cbd5e0; border-radius:5px; background:white; cursor:pointer; }
+        .logs-table-wrap { overflow:auto; background:white; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,.08); }
+        .logs-table { width:100%; border-collapse:collapse; min-width:900px; }
+        .logs-table th, .logs-table td { padding:11px 12px; border-bottom:1px solid #e2e8f0; text-align:left; vertical-align:top; font-size:13px; }
+        .logs-table th { background:#f7fafc; color:#4a5568; }
+        .logs-table tr:hover { background:#f8fafc; }
+        .log-detail { max-width:320px; white-space:pre-wrap; word-break:break-word; color:#4a5568; }
+        .log-action { font-weight:700; color:#2b6cb0; }
+        .pagination { display:flex; justify-content:space-between; align-items:center; padding:14px 0; color:#4a5568; }
+        @media (max-width:600px) { .logs-header { align-items:flex-start; flex-direction:column; } }
+    </style>
+</head>
+<body>
+    <main class="logs-page">
+        <div class="logs-header">
+            <h1><i class="fas fa-clipboard-list"></i> Log Aktivitas & Perubahan Data</h1>
+            <button class="btn btn-secondary" onclick="window.location.href='index.html'"><i class="fas fa-arrow-left"></i> Kembali</button>
+        </div>
+        <div class="logs-toolbar">
+            <select id="entityFilter"><option value="">Semua entitas</option><option value="odc">ODC</option><option value="odp">ODP</option><option value="pole">Tiang</option><option value="auth">Autentikasi</option><option value="user">Pengguna</option></select>
+            <select id="actionFilter"><option value="">Semua aksi</option><option value="create">Tambah</option><option value="update">Ubah</option><option value="delete">Hapus</option><option value="login">Login</option><option value="logout">Logout</option></select>
+            <button onclick="loadLogs()"><i class="fas fa-sync"></i> Muat ulang</button>
+        </div>
+        <div class="logs-table-wrap">
+            <table class="logs-table"><thead><tr><th>Waktu</th><th>Pengguna</th><th>Aksi</th><th>Entitas</th><th>Deskripsi</th><th>Perubahan</th><th>IP</th></tr></thead><tbody id="logsBody"><tr><td colspan="7">Memuat...</td></tr></tbody></table>
+        </div>
+        <div class="pagination"><span id="pageInfo"></span><div><button id="prevBtn" onclick="changePage(-1)">Sebelumnya</button> <button id="nextBtn" onclick="changePage(1)">Berikutnya</button></div></div>
+    </main>
+    <script>
+        const API_BASE = window.location.origin + '/fiber-manager/api';
+        let page = 1;
+        async function loadLogs() {
+            const params = new URLSearchParams({ page, limit: 100 });
+            const entity = document.getElementById('entityFilter').value;
+            const action = document.getElementById('actionFilter').value;
+            if (entity) params.set('entity_type', entity);
+            if (action) params.set('action', action);
+            const body = document.getElementById('logsBody');
+            try {
+                const response = await fetch(`${API_BASE}/activity_logs.php?${params}`, { credentials: 'include' });
+                if (response.status === 401 || response.status === 403) { window.location.href = 'index.html'; return; }
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || `Gagal memuat log (${response.status})`);
+                body.innerHTML = result.data.length ? result.data.map(log => `<tr><td>${escapeHtml(log.created_at)}</td><td>${escapeHtml(log.full_name || log.username || '-')}</td><td class="log-action">${escapeHtml(log.action)}</td><td>${escapeHtml(log.entity_type || '-')} #${escapeHtml(log.entity_id || '-')}</td><td>${escapeHtml(log.description || '-')}</td><td class="log-detail">${formatChanges(log)}</td><td>${escapeHtml(log.ip_address || '-')}</td></tr>`).join('') : '<tr><td colspan="7">Belum ada log.</td></tr>';
+                document.getElementById('pageInfo').textContent = `Halaman ${result.page} dari ${result.pages || 1} (${result.total} log)`;
+                document.getElementById('prevBtn').disabled = page <= 1;
+                document.getElementById('nextBtn').disabled = page >= result.pages;
+            } catch (error) { body.innerHTML = `<tr><td colspan="7">${escapeHtml(error.message)}</td></tr>`; }
+        }
+        function formatChanges(log) { return [log.old_values ? `Sebelum: ${log.old_values}` : '', log.new_values ? `Sesudah: ${log.new_values}` : ''].filter(Boolean).join('\n'); }
+        function escapeHtml(value) { return String(value).replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' })[char]); }
+        function changePage(delta) { page = Math.max(1, page + delta); loadLogs(); }
+        document.getElementById('entityFilter').addEventListener('change', () => { page = 1; loadLogs(); });
+        document.getElementById('actionFilter').addEventListener('change', () => { page = 1; loadLogs(); });
+        loadLogs();
+    </script>
+</body>
+</html>

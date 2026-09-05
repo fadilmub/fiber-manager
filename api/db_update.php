@@ -95,6 +95,24 @@ try {
     $pdo->exec($sql8);
     echo "✓ login_logs table created successfully.\n";
 
+    $sql_activity = "CREATE TABLE IF NOT EXISTS `activity_logs` (
+              `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+              `user_id` int(11) DEFAULT NULL,
+              `action` varchar(30) NOT NULL,
+              `entity_type` varchar(50) NOT NULL,
+              `entity_id` int(11) DEFAULT NULL,
+              `description` varchar(255) DEFAULT NULL,
+              `old_values` LONGTEXT DEFAULT NULL,
+              `new_values` LONGTEXT DEFAULT NULL,
+              `ip_address` varchar(45) DEFAULT NULL,
+              `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+              INDEX `idx_activity_created_at` (`created_at`),
+              INDEX `idx_activity_entity` (`entity_type`, `entity_id`),
+              FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci";
+    $pdo->exec($sql_activity);
+    echo "✓ activity_logs table created successfully.\n";
+
     // ==================== 3. VERIFY DATA INTEGRITY ====================
     
     // Check if users table has default admin account

@@ -212,6 +212,7 @@ function createODP() {
         }
         
         $pdo->commit();
+        logActivity('create', 'odp', $odp_id, 'Menambahkan ODP', null, $data);
         sendResponse(['id' => $odp_id, 'message' => 'ODP created successfully']);
     } catch(PDOException $e) {
         $pdo->rollBack();
@@ -323,6 +324,7 @@ function updateODP($id) {
         updateODPAvailablePorts($id);
         
         $pdo->commit();
+        logActivity('update', 'odp', $id, 'Mengubah ODP', $oldData, $data);
         
         // Return updated ODP
         $stmt = $pdo->prepare("
@@ -382,6 +384,7 @@ function deleteODP($id) {
         $stmt->execute([$id]);
         
         $pdo->commit();
+        logActivity('delete', 'odp', $id, 'Menghapus ODP', $odp, null);
         sendResponse(['message' => 'ODP deleted successfully']);
     } catch(PDOException $e) {
         $pdo->rollBack();

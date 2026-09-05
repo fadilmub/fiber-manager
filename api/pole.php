@@ -78,6 +78,7 @@ function createPole() {
             $data['jenis_tiang'] ?? null
         ]);
         $pole_id = $pdo->lastInsertId();
+        logActivity('create', 'pole', $pole_id, 'Menambahkan tiang', null, $data);
         sendResponse(['id' => $pole_id, 'message' => 'Pole created successfully']);
     } catch(PDOException $e) {
         sendResponse(['error' => $e->getMessage()], 500);
@@ -96,6 +97,9 @@ function updatePole($id) {
     }
 
     try {
+        $oldStmt = $pdo->prepare("SELECT * FROM pole WHERE id = ?");
+        $oldStmt->execute([$id]);
+        $oldData = $oldStmt->fetch();
         $stmt = $pdo->prepare("UPDATE pole SET name = ?, lat = ?, lng = ?, location = ?, description = ?, jenis_tiang = ?, updated_at = NOW() WHERE id = ?");
         $stmt->execute([
             $data['name'],
@@ -106,6 +110,7 @@ function updatePole($id) {
             $data['jenis_tiang'] ?? null,
             $id
         ]);
+        logActivity('update', 'pole', $id, 'Mengubah tiang', $oldData, $data);
         sendResponse(['id' => $id, 'message' => 'Pole updated successfully']);
     } catch(PDOException $e) {
         sendResponse(['error' => $e->getMessage()], 500);
@@ -119,8 +124,12 @@ function deletePole($id) {
     }
 
     try {
+        $oldStmt = $pdo->prepare("SELECT * FROM pole WHERE id = ?");
+        $oldStmt->execute([$id]);
+        $oldData = $oldStmt->fetch();
         $stmt = $pdo->prepare("DELETE FROM pole WHERE id = ?");
         $stmt->execute([$id]);
+        logActivity('delete', 'pole', $id, 'Menghapus tiang', $oldData, null);
         sendResponse(['id' => $id, 'message' => 'Pole deleted successfully']);
     } catch(PDOException $e) {
         sendResponse(['error' => $e->getMessage()], 500);

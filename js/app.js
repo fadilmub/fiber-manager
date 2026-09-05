@@ -49,6 +49,10 @@ async function loadUserInfo() {
                 if (btnUserManagement && data.user.role === 'admin') {
                     btnUserManagement.style.display = 'inline-block';
                 }
+                const btnActivityLogs = document.getElementById('btnActivityLogs');
+                if (btnActivityLogs && data.user.role === 'admin') {
+                    btnActivityLogs.style.display = 'inline-block';
+                }
                 return data.user;
             }
         }

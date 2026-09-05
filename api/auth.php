@@ -76,6 +76,7 @@ function login() {
                 $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
                 'success'
             ]);
+            logActivity('login', 'auth', $user['id'], 'Login berhasil');
             
             sendResponse([
                 'message' => 'Login berhasil',
@@ -107,6 +108,9 @@ function login() {
 }
 
 function logout() {
+    if (isAuthenticated()) {
+        logActivity('logout', 'auth', $_SESSION['user_id'], 'Logout pengguna');
+    }
     // Clear session
     $_SESSION = [];
     

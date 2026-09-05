@@ -120,6 +120,12 @@ function createUser() {
         ]);
         
         $id = $pdo->lastInsertId();
+        logActivity('create', 'user', $id, 'Menambahkan pengguna', null, [
+            'username' => $data['username'],
+            'full_name' => $data['full_name'],
+            'role' => $data['role'] ?? 'operator',
+            'is_active' => $data['is_active'] ?? 1
+        ]);
         sendResponse(['id' => $id, 'message' => 'User berhasil ditambahkan']);
     } catch(PDOException $e) {
         sendResponse(['error' => $e->getMessage()], 500);
@@ -136,9 +142,10 @@ function updateUser($id) {
     
     try {
         // Cek user exists
-        $stmt = $pdo->prepare("SELECT id FROM users WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT id, username, full_name, email, phone, role, is_active, notes FROM users WHERE id = ?");
         $stmt->execute([$id]);
-        if (!$stmt->fetch()) {
+        $oldData = $stmt->fetch();
+        if (!$oldData) {
             sendResponse(['error' => 'User tidak ditemukan'], 404);
         }
         
@@ -185,6 +192,10 @@ function updateUser($id) {
         $sql = "UPDATE users SET " . implode(', ', $fields) . " WHERE id = ?";
         $stmt = $pdo->prepare($sql);
         $stmt->execute($values);
+
+        $newData = $data;
+        unset($newData['password']);
+        logActivity('update', 'user', $id, 'Mengubah pengguna', $oldData, $newData);
         
         sendResponse(['message' => 'User berhasil diupdate']);
     } catch(PDOException $e) {
@@ -209,8 +220,13 @@ function resetPassword($id) {
     }
     
     try {
+        $oldStmt = $pdo->prepare("SELECT id, username, full_name FROM users WHERE id = ?");
+        $oldStmt->execute([$id]);
+        $oldData = $oldStmt->fetch();
         $stmt = $pdo->prepare("UPDATE users SET password = ? WHERE id = ?");
         $stmt->execute([password_hash($data['new_password'], PASSWORD_DEFAULT), $id]);
+
+        logActivity('update', 'user', $id, 'Mereset password pengguna', $oldData, ['password' => '[diubah]']);
         
         sendResponse(['message' => 'Password berhasil direset']);
     } catch(PDOException $e) {
@@ -232,14 +248,16 @@ function deleteUser($id) {
     
     try {
         // Cek user exists
-        $stmt = $pdo->prepare("SELECT id FROM users WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT id, username, full_name, role FROM users WHERE id = ?");
         $stmt->execute([$id]);
-        if (!$stmt->fetch()) {
+        $oldData = $stmt->fetch();
+        if (!$oldData) {
             sendResponse(['error' => 'User tidak ditemukan'], 404);
         }
         
         $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
         $stmt->execute([$id]);
+        logActivity('delete', 'user', $id, 'Menghapus pengguna', $oldData, null);
         
         sendResponse(['message' => 'User berhasil dihapus']);
     } catch(PDOException $e) {

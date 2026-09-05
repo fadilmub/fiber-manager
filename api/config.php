@@ -163,4 +163,30 @@ function getRequestData() {
     }
     return $data;
 }
+
+function logActivity($action, $entityType, $entityId = null, $description = '', $oldValues = null, $newValues = null) {
+    global $pdo;
+    try {
+        $userId = $_SESSION['user_id'] ?? null;
+        $stmt = $pdo->prepare("INSERT INTO activity_logs
+            (user_id, action, entity_type, entity_id, description, old_values, new_values, ip_address)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $encode = function ($value) {
+            if ($value === null || $value === '') return null;
+            return is_string($value) ? $value : json_encode($value, JSON_UNESCAPED_UNICODE);
+        };
+        $stmt->execute([
+            $userId,
+            $action,
+            $entityType,
+            $entityId,
+            $description,
+            $encode($oldValues),
+            $encode($newValues),
+            $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+        ]);
+    } catch (Throwable $e) {
+        error_log('Activity log write failed: ' . $e->getMessage());
+    }
+}
 ?>
