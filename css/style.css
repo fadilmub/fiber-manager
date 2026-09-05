@@ -247,24 +247,227 @@ body {
     width: 100%;
 }
 
+/* =============================================
+   MAP VIEW CONTROLS (COMPACT & SPACE EFFICIENT)
+   ============================================= */
+.map-view-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 6px 8px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    width: 224px;
+    box-sizing: border-box;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.map-controls-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding-bottom: 2px;
+}
+
+.map-controls-title {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    user-select: none;
+}
+
+.map-controls-title i {
+    color: #3182ce;
+    font-size: 11px;
+}
+
+.map-controls-toggle {
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 5px;
+    background: #f1f5f9;
+    color: #64748b;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    line-height: 1;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+    touch-action: manipulation;
+}
+
+.map-controls-toggle:hover {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+
+.map-controls-toggle:active {
+    transform: scale(0.92);
+}
+
+.map-controls-body {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.map-toggle-row {
+    display: flex;
+    gap: 4px;
+}
+
+.map-control-toggle {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 4px 2px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    cursor: pointer;
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 600;
+    transition: all 0.15s ease;
+    user-select: none;
+    white-space: nowrap;
+    touch-action: manipulation;
+}
+
+.map-control-toggle input {
+    margin: 0;
+    cursor: pointer;
+    width: 12px;
+    height: 12px;
+    accent-color: #3182ce;
+}
+
+.map-control-toggle i {
+    font-size: 10px;
+}
+
+.map-control-toggle:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #334155;
+}
+
+.map-control-toggle:active {
+    transform: scale(0.96);
+}
+
+.map-control-toggle:has(input:checked) {
+    background: #ebf8ff;
+    border-color: #90cdf4;
+    color: #2b6cb0;
+}
+
+.map-control-toggle:has(input:checked) i {
+    color: #3182ce;
+}
+
+.layer-button-row {
+    display: flex;
+    gap: 3px;
+    justify-content: space-between;
+}
+
 .map-layer-button {
+    flex: 1;
     border: 1px solid #cbd5e0;
     background: #f8fafc;
     color: #4a5568;
-    border-radius: 999px;
-    padding: 6px 10px;
-    font-size: 11px;
-    font-weight: 600;
+    border-radius: 6px;
+    padding: 3px 2px;
+    font-size: 10px;
+    font-weight: 700;
     cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    transition: all 0.15s ease;
+    text-align: center;
+    line-height: 1.2;
+    white-space: nowrap;
+    touch-action: manipulation;
+}
+
+.map-layer-button:hover {
+    border-color: #90cdf4;
+    transform: translateY(-1px);
+}
+
+.map-layer-button:active {
+    transform: scale(0.95);
 }
 
 .map-layer-button.active {
     background: #3182ce;
     border-color: #3182ce;
     color: #fff;
-    box-shadow: 0 4px 10px rgba(49, 130, 206, 0.24);
+    box-shadow: 0 2px 6px rgba(49, 130, 206, 0.25);
+}
+
+.layer-label-full {
+    display: inline;
+}
+
+.layer-label-short {
+    display: none;
+}
+
+/* Collapsed state */
+.map-view-controls.collapsed {
+    width: auto;
+    padding: 4px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+.map-view-controls.collapsed .map-controls-header {
+    padding-bottom: 0;
+}
+
+.map-view-controls.collapsed .map-controls-title,
+.map-view-controls.collapsed .map-controls-body {
+    display: none;
+}
+
+.map-view-controls.collapsed .map-controls-toggle {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+    color: #3182ce;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+}
+
+.map-view-controls.collapsed .map-controls-toggle:hover {
+    background: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.18);
 }
 
 /* =============================================
@@ -1217,6 +1420,24 @@ form {
     .info-content {
         max-height: 120px;
     }
+
+    .map-view-controls {
+        top: 6px;
+        right: 6px;
+        padding: 4px 6px;
+        gap: 3px;
+        width: 195px;
+    }
+
+    .map-control-toggle {
+        min-height: 26px;
+        padding: 2px 2px;
+    }
+
+    .map-layer-button {
+        min-height: 24px;
+        padding: 2px 1px;
+    }
 }
 /* Tambahan untuk modal besar */
 .modal-lg {
@@ -1379,38 +1600,176 @@ form {
     60% { transform: rotate(2deg); }
 }
 
-/* Responsivitas untuk mobile screens */
+/* Responsivitas untuk mobile & tablet screens */
 @media (max-width: 768px) {
+    /* Optimasi performa GPU mobile: matikan backdrop-filter blur yang membebani GPU HP saat pan/zoom */
+    .map-view-controls,
+    .map-drag-widget,
+    .info-panel,
+    .coordinate-search {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        background: rgba(255, 255, 255, 0.96) !important;
+    }
+
+    /* Posisikan kontrol zoom Leaflet agar tidak tertutup tombol toggle sidebar */
+    .leaflet-top.leaflet-left {
+        top: 56px !important;
+        left: 10px !important;
+    }
+
+    .map-view-controls {
+        right: 8px;
+        top: 8px;
+        width: 215px;
+    }
+
+    .map-view-controls.collapsed {
+        width: auto;
+    }
+
+    .map-view-controls.collapsed .map-controls-toggle {
+        width: 36px;
+        height: 36px;
+        font-size: 15px;
+    }
+
+    .map-controls-toggle {
+        width: 24px;
+        height: 24px;
+        font-size: 11px;
+    }
+
+    .map-control-toggle {
+        min-height: 30px;
+    }
+
+    .map-layer-button {
+        min-height: 28px;
+    }
+
+    /* Posisikan drag widget di samping tombol sidebar toggle (left: 58px) tanpa menabrak kontrol peta */
     .map-drag-widget {
-        left: 60px;
+        left: 58px;
         top: 10px;
-        padding: 4px 10px;
-        gap: 8px;
+        right: auto;
+        max-width: calc(100vw - 235px);
+        padding: 4px 8px;
+        gap: 6px;
+        overflow: hidden;
     }
-    
+
     .drag-widget-title {
-        font-size: 9px;
-        padding-right: 8px;
-        gap: 4px;
+        display: none;
     }
-    
+
     .drag-item {
-        padding: 2px 6px;
+        padding: 2px 5px;
         gap: 4px;
     }
-    
+
     .drag-icon-wrapper {
         width: 24px;
         height: 24px;
     }
-    
+
     .drag-icon-wrapper img {
         width: 18px;
         height: 18px;
     }
-    
+
     .drag-label {
-        font-size: 11px;
+        font-size: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .map-view-controls {
+        right: 6px;
+        top: 6px;
+        width: 168px;
+        padding: 5px 6px;
+    }
+
+    .map-controls-header {
+        padding-bottom: 1px;
+    }
+
+    .map-controls-title {
+        font-size: 9.5px;
+        letter-spacing: 0.02em;
+    }
+
+    .map-controls-toggle {
+        width: 22px;
+        height: 22px;
+        font-size: 10px;
+    }
+
+    /* Di layar HP sempit, sembunyikan teks toggle dan fokus pada ikon & centang yang jelas */
+    .toggle-label {
+        display: none;
+    }
+
+    .map-control-toggle {
+        padding: 5px 2px;
+        gap: 4px;
+        min-height: 32px;
+    }
+
+    .map-control-toggle input {
+        width: 13px;
+        height: 13px;
+    }
+
+    .map-control-toggle i {
+        font-size: 12px;
+    }
+
+    /* Ganti label 'Pelanggan' menjadi 'Plg' agar pas simetris tanpa wrap */
+    .layer-label-full {
+        display: none;
+    }
+
+    .layer-label-short {
+        display: inline;
+    }
+
+    .map-layer-button {
+        font-size: 9.5px;
+        padding: 5px 2px;
+        min-height: 28px;
+    }
+
+    /* Floating Action Button saat collapsed di mobile */
+    .map-view-controls.collapsed {
+        right: 6px;
+        top: 6px;
+        padding: 0;
+    }
+
+    .map-view-controls.collapsed .map-controls-toggle {
+        width: 38px;
+        height: 38px;
+        font-size: 16px;
+        border-radius: 10px;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
+    }
+
+    .map-drag-widget {
+        left: 56px;
+        top: 10px;
+        right: auto;
+        max-width: calc(100vw - 110px);
+        padding: 2px 4px;
+    }
+
+    .drag-item {
+        padding: 2px 4px;
+    }
+
+    .drag-label {
+        display: none;
     }
 }
 

@@ -298,8 +298,11 @@ function showLineDetails(line) {
 }
 
 function addLineHoverHandlers(line) {
-    line.on('mouseover', () => highlightLine(line));
-    line.on('mouseout', () => resetLineStyle(line));
+    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    if (!isTouchDevice) {
+        line.on('mouseover', () => highlightLine(line));
+        line.on('mouseout', () => resetLineStyle(line));
+    }
     line.on('click', handleLineClick);
 }
 
@@ -357,6 +360,22 @@ function toggleMapLayer(layerName) {
     refreshMapMarkers();
 }
 
+function toggleMapControls() {
+    const panel = document.getElementById('mapViewControls');
+    const toggleBtn = document.getElementById('mapControlsToggle');
+    if (!panel || !toggleBtn) return;
+
+    const isCollapsed = !panel.classList.contains('collapsed');
+    panel.classList.toggle('collapsed', isCollapsed);
+
+    const icon = toggleBtn.querySelector('.map-controls-icon');
+    if (icon) {
+        icon.innerHTML = isCollapsed ? '<i class="fas fa-layer-group"></i>' : '<i class="fas fa-minus"></i>';
+    }
+    toggleBtn.title = isCollapsed ? 'Tampilkan kontrol peta' : 'Sembunyikan kontrol peta';
+    localStorage.setItem('mapControlsHidden', isCollapsed ? 'true' : 'false');
+}
+
 function syncMapLayerButtons() {
     document.querySelectorAll('.map-layer-button').forEach(button => {
         const layer = button.dataset.layer;
@@ -381,10 +400,11 @@ function initMap() {
     const zoom = savedZoom ? parseInt(savedZoom) : defaultZoom;
     map = L.map('map', { preferCanvas: true }).setView(center, zoom);
     // Google Satellite (lyrs=s) atau Mode Standar (lyrs=m)
-    // Determine map type (satellite or roadmap) from saved setting.
-    // If no setting is saved, default to satellite (true).
+    // Pada mobile default peta standar (roadmap) agar lebih ringan, di desktop satelit
+    const isMobileDevice = window.innerWidth <= 768;
     const storedMapType = localStorage.getItem('toggleMapType');
-    const isSatellite = storedMapType === null ? true : storedMapType === 'true';
+    const defaultIsSatellite = isMobileDevice ? false : true;
+    const isSatellite = storedMapType === null ? defaultIsSatellite : storedMapType === 'true';
     const url = isSatellite ? 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}' : 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
     baseTileLayer = L.tileLayer(url, {
         attribution: '© Google',
@@ -410,6 +430,20 @@ function initMap() {
         isLinesEnabled = linesChecked;
     }
 
+    const mapControlsPanel = document.getElementById('mapViewControls');
+    const mapControlsToggle = document.getElementById('mapControlsToggle');
+    if (mapControlsPanel && mapControlsToggle) {
+        const savedHidden = localStorage.getItem('mapControlsHidden');
+        const defaultHidden = window.innerWidth <= 600;
+        const controlsHidden = savedHidden !== null ? savedHidden === 'true' : defaultHidden;
+        mapControlsPanel.classList.toggle('collapsed', controlsHidden);
+        const icon = mapControlsToggle.querySelector('.map-controls-icon');
+        if (icon) {
+            icon.innerHTML = controlsHidden ? '<i class="fas fa-layer-group"></i>' : '<i class="fas fa-minus"></i>';
+        }
+        mapControlsToggle.title = controlsHidden ? 'Tampilkan kontrol peta' : 'Sembunyikan kontrol peta';
+    }
+
     // Persist map movement (center & zoom)
     map.on('moveend', function () {
         const c = map.getCenter();
@@ -419,11 +453,17 @@ function initMap() {
 
     markersLayer = L.layerGroup().addTo(map);
 
-    // Inisialisasi Marker Cluster untuk performa tinggi
+    // Inisialisasi Marker Cluster untuk performa tinggi dengan chunked loading (anti-lag di HP)
     if (typeof L.markerClusterGroup !== 'undefined') {
         window.markerClusterGroup = L.markerClusterGroup({
             disableClusteringAtZoom: 18,
-            maxClusterRadius: 50
+            maxClusterRadius: isMobileDevice ? 65 : 50,
+            chunkedLoading: true,
+            chunkInterval: 100,
+            chunkDelay: 10,
+            removeOutsideVisibleBounds: true,
+            spiderfyOnMaxZoom: true,
+            showCoverageOnHover: !isMobileDevice
         }).addTo(map);
     }
 
@@ -434,6 +474,7 @@ function initMap() {
         clearSelectedDeviceLines();
     });
 
+    let lastZoomBucket = null;
     const updateTooltipVisibility = () => {
         const currentZoom = map.getZoom();
         const mapContainer = document.getElementById('map');
@@ -445,10 +486,17 @@ function initMap() {
             }
         }
 
+        // Hanya ganti icon jika zoom melewati batas dot (<13), odc-dot (13), atau full (>=14)
+        const newBucket = currentZoom < 13 ? 'dot' : (currentZoom < 14 ? 'odc-dot' : 'full');
+        if (newBucket === lastZoomBucket) {
+            return;
+        }
+        lastZoomBucket = newBucket;
+
         if (window.zoomAwareMarkers && Array.isArray(window.zoomAwareMarkers)) {
             window.zoomAwareMarkers.forEach(({ marker, createIcon }) => {
                 if (marker && typeof marker.setIcon === 'function' && typeof createIcon === 'function') {
-                    marker.setIcon(createIcon(map.getZoom()));
+                    marker.setIcon(createIcon(currentZoom));
                 }
             });
         }
@@ -462,14 +510,42 @@ function initMap() {
 // Inisialisasi dukungan Drag & Drop dari Pojok Peta
 function initDragAndDropSupport() {
     const dragItems = document.querySelectorAll('.drag-item');
+    let mapDraggingWasEnabled = false;
+
+    const restoreMapDragging = () => {
+        if (map && mapDraggingWasEnabled) {
+            map.dragging.enable();
+        }
+        mapDraggingWasEnabled = false;
+    };
+
     dragItems.forEach(item => {
+        item.addEventListener('click', function () {
+            const type = this.dataset.type;
+            if (type === 'odp' && typeof showAddODPDialog === 'function') {
+                showAddODPDialog();
+            } else if (type === 'odc' && typeof showAddODCDialog === 'function') {
+                showAddODCDialog();
+            } else if (type === 'pole' && typeof showAddPoleDialog === 'function') {
+                showAddPoleDialog();
+            }
+        });
+
         item.addEventListener('dragstart', function (e) {
+            e.stopPropagation();
+            e.dataTransfer.effectAllowed = 'copy';
             e.dataTransfer.setData('text/plain', this.dataset.type);
+            mapDraggingWasEnabled = Boolean(map && map.dragging && map.dragging.enabled());
+            if (mapDraggingWasEnabled) {
+                map.dragging.disable();
+            }
             this.classList.add('dragging');
         });
 
-        item.addEventListener('dragend', function () {
+        item.addEventListener('dragend', function (e) {
+            e.stopPropagation();
             this.classList.remove('dragging');
+            restoreMapDragging();
         });
     });
 
@@ -478,15 +554,22 @@ function initDragAndDropSupport() {
 
     mapContainer.addEventListener('dragover', function (e) {
         e.preventDefault(); // Diperlukan agar event drop bisa ditrigger
-        e.dataTransfer.dropEffect = 'copy';
+        e.stopPropagation();
+        if (e.dataTransfer) {
+            e.dataTransfer.dropEffect = 'copy';
+        }
     });
 
     mapContainer.addEventListener('drop', function (e) {
         e.preventDefault();
-        const type = e.dataTransfer.getData('text/plain');
+        e.stopPropagation();
+        restoreMapDragging();
+        const type = e.dataTransfer ? e.dataTransfer.getData('text/plain') : '';
         if (type === 'odp' || type === 'odc' || type === 'pole') {
-            // Konversi koordinat drop event ke objek LatLng Leaflet
-            const latlng = map.mouseEventToLatLng(e);
+            // Hitung posisi relatif terhadap container agar konsisten di browser berbeda.
+            const rect = mapContainer.getBoundingClientRect();
+            const containerPoint = [e.clientX - rect.left, e.clientY - rect.top];
+            const latlng = map.containerPointToLatLng(containerPoint);
             if (latlng && typeof handleMapDeviceDrop === 'function') {
                 handleMapDeviceDrop(type, latlng);
             }
@@ -1070,6 +1153,10 @@ function refreshMapMarkers() {
 
     syncMapLayerButtons();
 
+    // Di mobile, matikan permanent tooltips agar tidak membuat ratusan elemen teks di DOM
+    const isMobileDevice = window.innerWidth <= 768 || ('ontouchstart' in window && window.innerWidth <= 1024);
+    const usePermanentTooltips = !isMobileDevice;
+
     // 1. Render POP Markers
     if (devices.pop) {
         devices.pop.forEach(pop => {
@@ -1085,7 +1172,7 @@ function refreshMapMarkers() {
                 highlightLinesForDevice(pop);
             });
             marker.bindTooltip(pop.name, {
-                permanent: true,
+                permanent: usePermanentTooltips,
                 direction: 'top',
                 className: 'marker-tooltip-label',
                 offset: [0, -20]
@@ -1110,7 +1197,7 @@ function refreshMapMarkers() {
             const marker = L.marker([parseFloat(odc.lat), parseFloat(odc.lng)], { icon: createODCIcon(map ? map.getZoom() : 15) });
             window.zoomAwareMarkers.push({ marker, createIcon: createODCIcon });
             marker.bindTooltip(odc.name, {
-                permanent: true,
+                permanent: usePermanentTooltips,
                 direction: 'top',
                 className: 'marker-tooltip-label',
                 offset: [0, -40]
@@ -1164,7 +1251,7 @@ function refreshMapMarkers() {
         const marker = L.marker([parseFloat(pole.lat), parseFloat(pole.lng)], { icon: createPoleIcon(map ? map.getZoom() : 15) });
         window.zoomAwareMarkers.push({ marker, createIcon: createPoleIcon });
         marker.bindTooltip(pole.name, {
-            permanent: true,
+            permanent: usePermanentTooltips,
             direction: 'top',
             className: 'marker-tooltip-label',
             offset: [0, -40]
@@ -1185,7 +1272,7 @@ function refreshMapMarkers() {
             const marker = L.marker([parseFloat(odp.lat), parseFloat(odp.lng)], { icon: icon });
             window.zoomAwareMarkers.push({ marker, createIcon: (zoomLevel) => createODPIcon(odp.available_ports, odp.total_ports, zoomLevel) });
             marker.bindTooltip(odp.name, {
-                permanent: true,
+                permanent: usePermanentTooltips,
                 direction: 'top',
                 className: 'marker-tooltip-label',
                 offset: [0, -40]
@@ -1228,7 +1315,7 @@ function refreshMapMarkers() {
                             });
 
                             customerMarker.bindTooltip(port.target || 'Pelanggan', {
-                                permanent: true,
+                                permanent: usePermanentTooltips,
                                 direction: 'top',
                                 className: 'marker-tooltip-label',
                                 offset: [0, -15]

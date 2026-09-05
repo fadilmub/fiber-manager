@@ -177,23 +177,26 @@ async function handleMapDeviceDrop(type, latlng) {
     const coordVal = `${latlng.lat.toFixed(8)}, ${latlng.lng.toFixed(8)}`;
 
     if (type === 'odp') {
-        await showAddODPDialog();
+        const dialogPromise = showAddODPDialog();
         const coordInput = document.getElementById('odpCoordinates');
         if (coordInput) {
             coordInput.value = coordVal;
         }
+        await dialogPromise;
     } else if (type === 'odc') {
-        await showAddODCDialog();
+        const dialogPromise = showAddODCDialog();
         const coordInput = document.getElementById('odcCoordinates');
         if (coordInput) {
             coordInput.value = coordVal;
         }
+        await dialogPromise;
     } else if (type === 'pole') {
-        await showAddPoleDialog();
+        const dialogPromise = showAddPoleDialog();
         const coordInput = document.getElementById('poleCoordinates');
         if (coordInput) {
             coordInput.value = coordVal;
         }
+        await dialogPromise;
     }
 }
 
@@ -278,11 +281,11 @@ async function showAddODPDialog() {
     const odpOdcPortGroup = document.getElementById('odpOdcPortGroup');
     if (odpOdcPortGroup) odpOdcPortGroup.style.display = 'none';
 
-    await populateSourceDropdown();
-    generatePortStatusInputs();
-
     const odpModal = document.getElementById('odpModal');
     if (odpModal) odpModal.classList.add('show');
+
+    await populateSourceDropdown();
+    generatePortStatusInputs();
 }
 
 async function populateSourceDropdown(selectedSourceId = null, selectedPort = null) {
@@ -962,10 +965,10 @@ async function showAddODCDialog() {
     if (portGroup) portGroup.style.display = 'none';
     if (portInfo) portInfo.style.display = 'none';
 
-    await loadPOPsForODC();
-
     const odcModal = document.getElementById('odcModal');
     if (odcModal) odcModal.classList.add('show');
+
+    await loadPOPsForODC();
 }
 
 async function saveODC() {
